@@ -1,0 +1,50 @@
+# Node
+node_modules/
+*.log
+npm-debug.log*
+
+# Claude Code Runtime
+.claude/state/
+.claude/cache/
+.claude/sessions/
+**/escalation-counter.state
+**/last-reviewer-run.state
+
+# Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+
+# Python (für ClickUp-Worker)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# Test-Artefakte
+test-results/
+coverage/
+*.test.log
+
+# Build-Artefakte
+dist/
+build/
+
+# Plugin-spezifisch
+.plugin-installed-marker

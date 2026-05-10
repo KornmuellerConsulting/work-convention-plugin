@@ -1,0 +1,23 @@
+<!-- AUTO-GENERATED — wird vom Plugin gepflegt nach erstem Tool-Use -->
+
+# {{APP_NAME}} — Live-Status
+
+**Last Update:** (wird beim ersten Run gesetzt)
+**Operator:** (wird beim ersten Run gesetzt)
+**Branch:** (wird beim ersten Run gesetzt)
+
+## Aktueller Task
+
+(noch keine Tasks aktiv)
+
+## Letzte Tool-Use
+
+(noch keine Tool-Uses)
+
+## Eskalations-Counter
+
+0 Fails
+
+## Open Tasks (aus ClickUp)
+
+(noch nicht synchronisiert — `python3 .claude/scripts/clickup-spiegel.py sync-tasks`)

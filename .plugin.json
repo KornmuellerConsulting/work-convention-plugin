@@ -1,0 +1,45 @@
+{
+  "name": "work-convention-plugin",
+  "version": "1.0.0",
+  "displayName": "Kornmueller Work Convention",
+  "description": "Multi-App-Empire Konvention für Kornmueller Consulting. Hooks, Skills, Subagents, ClickUp-Worker, 3-Layer-Eskalation, autonome Production-Deploys.",
+  "author": "Kornmueller Consulting <patrick@kornmueller-consulting.de>",
+  "homepage": "https://github.com/KornmuellerConsulting/work-convention-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/KornmuellerConsulting/work-convention-plugin"
+  },
+  "license": "MIT",
+  "engines": {
+    "claude-code": ">=1.0.0"
+  },
+  "components": {
+    "settings": "claude/settings.json",
+    "hooks": "claude/hooks/",
+    "subagents": "claude/agents/",
+    "skills": "claude/skills/",
+    "commands": "claude/commands/",
+    "scripts": "scripts/"
+  },
+  "config": {
+    "escalation": {
+      "layer2_trigger_failure_count": 3,
+      "layer3_hard_block_failure_count": 4,
+      "reviewer_interval_minutes": 30
+    },
+    "notifications": {
+      "ping_strategy": "broadcast_both",
+      "channels": ["slack", "pushover", "whatsapp"]
+    },
+    "deployment": {
+      "stage_default": true,
+      "production_abort_window_seconds": 300
+    }
+  },
+  "requires_app_config": [
+    ".env",
+    ".claude/app.json"
+  ],
+  "post_install_hook": "scripts/post-install.sh",
+  "post_update_hook": "scripts/post-update.sh"
+}

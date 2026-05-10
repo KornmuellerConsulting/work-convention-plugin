@@ -1,0 +1,20 @@
+# DECISIONS — {{APP_NAME}}
+
+> Append-Only Log aller architektonischen Entscheidungen.
+> Format-Spec: docs/DECISION_MARKUP.md im Plugin-Repo.
+
+## {{DATE}} — Initial Bootstrap
+
+\`\`\`
+DECISION: App-Skeleton angelegt
+TICKET: {{PROJECT_PREFIX}}-001
+PROBLEM: Neue App im Empire braucht Skeleton-Struktur
+ALTERNATIVES:
+  A) Stack-konform mit Empire (Next.js + Supabase + Stripe)
+  B) Custom Stack
+DECISION: A
+RATIONALE: Stack-Konsistenz mit anderen Apps, Cross-App-Synergien via shared-Packages
+DATE: {{DATE}}
+OPERATOR: bootstrap
+LAYER: 1
+\`\`\`

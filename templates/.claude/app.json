@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-app.json",
+  "app_name": "{{APP_NAME}}",
+  "project_prefix": "{{PROJECT_PREFIX}}",
+  "domain": "{{APP_DOMAIN}}",
+  "tech_stack": {
+    "frontend": "nextjs",
+    "language": "typescript"
+  },
+  "co_founders": [
+    { "name": "Patrick Kornmüller", "github": "patrick-kornmueller", "operator_id": "patrick", "is_admin": true },
+    { "name": "Justin Görmez", "github": "justin-goermez", "operator_id": "justin", "is_admin": true }
+  ],
+  "escalation": {
+    "ping_strategy": "broadcast_both"
+  },
+  "plugin_audit": {
+    "last_run": null,
+    "interval_days": 30
+  }
+}
