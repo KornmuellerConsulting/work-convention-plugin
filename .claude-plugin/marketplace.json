@@ -1,7 +1,7 @@
 {
   "name": "kornmueller-empire",
   "description": "Kornmueller Consulting Plugin-Marketplace für das Multi-App-Empire.",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "owner": {
     "name": "Kornmueller Consulting",
     "email": "patrick@kornmueller-consulting.de"
@@ -14,7 +14,7 @@
       "name": "work-convention",
       "source": "./plugins/work-convention",
       "description": "Hooks, Subagents, ClickUp/Slack-Integration, 3-Layer-Eskalation für Empire-Apps.",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "author": {
         "name": "Patrick Kornmüller + Justin Görmez"
       },

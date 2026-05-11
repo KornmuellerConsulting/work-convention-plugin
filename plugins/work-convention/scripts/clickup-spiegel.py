@@ -134,7 +134,7 @@ def cmd_bootstrap_space(args: argparse.Namespace) -> int:
     print(f'  CLICKUP_TASKS_LIST_ID="{list_id}"')
     print()
     print("Nächster Schritt: Custom-Fields anlegen")
-    print(f"  python3 .claude/scripts/bootstrap-clickup-fields.py")
+    print(f"  python3 bootstrap-clickup-fields.py  # (im Plugin-Cache)")
     return 0
 
 

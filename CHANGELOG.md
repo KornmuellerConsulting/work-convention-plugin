@@ -5,6 +5,13 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.1.1] — 2026-05-11
+
+### Fixed
+- `notify-test.sh` referenzierte alte App-lokale Pfade (`$PROJECT_DIR/.claude/scripts/`). Sibling-Scripts werden jetzt via `$(dirname "$0")/...` aufgerufen — funktioniert nativ aus dem Plugin-Cache.
+- `healthcheck.sh` komplett auf neue Plugin-Architektur umgeschrieben: prüft jetzt Plugin-Cache-Files + App-`.env` getrennt.
+- `clickup-spiegel.py` Hint-Text korrigiert (verwies auf alten Plugin-Pfad).
+
 ## [1.1.0] — 2026-05-10
 
 ### Geändert (Breaking)
