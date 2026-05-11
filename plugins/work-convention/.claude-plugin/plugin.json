@@ -1,0 +1,13 @@
+{
+  "name": "work-convention",
+  "description": "Multi-App-Empire Konvention für Kornmueller Consulting. Hooks, Skills, Subagents, ClickUp-Worker, 3-Layer-Eskalation, autonome Production-Deploys.",
+  "version": "1.1.0",
+  "author": {
+    "name": "Kornmueller Consulting",
+    "email": "patrick@kornmueller-consulting.de"
+  },
+  "homepage": "https://github.com/KornmuellerConsulting/work-convention-plugin",
+  "repository": "https://github.com/KornmuellerConsulting/work-convention-plugin",
+  "license": "MIT",
+  "keywords": ["multi-app", "monorepo", "clickup", "slack", "escalation"]
+}

@@ -12,7 +12,7 @@ ACTIVE_TICKET="$STATE_DIR/active-ticket.txt"
 TICKET=$(cat "$ACTIVE_TICKET" 2>/dev/null)
 [ -z "$TICKET" ] && exit 0
 
-CLICKUP_SCRIPT="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/scripts/clickup-spiegel.py"
+CLICKUP_SCRIPT="${CLAUDE_PLUGIN_ROOT}/scripts/clickup-spiegel.py"
 [ ! -f "$CLICKUP_SCRIPT" ] && exit 0
 
 OPERATOR="${CURRENT_OPERATOR:-unknown}"

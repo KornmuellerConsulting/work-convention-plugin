@@ -10,7 +10,7 @@ CMD="${CLAUDE_TOOL_INPUT_command:-}"
 
 # Match git push (nicht push --no-verify)
 if echo "$CMD" | grep -qE '^[[:space:]]*git[[:space:]]+push' && ! echo "$CMD" | grep -q '\-\-no-verify'; then
-  PRE_PUSH_HOOK="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/pre-push-tests.sh"
+  PRE_PUSH_HOOK="${CLAUDE_PLUGIN_ROOT}/hooks/pre-push-tests.sh"
   if [ -x "$PRE_PUSH_HOOK" ]; then
     bash "$PRE_PUSH_HOOK" || {
       cat <<MSG >&2

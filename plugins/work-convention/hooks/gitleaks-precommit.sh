@@ -11,7 +11,7 @@ if ! command -v gitleaks &>/dev/null; then
   exit 0
 fi
 
-CONFIG="${CLAUDE_PROJECT_DIR}/.claude/scripts/.gitleaks.toml"
+CONFIG="${CLAUDE_PLUGIN_ROOT}/scripts/.gitleaks.toml"
 [ -f "$CONFIG" ] || CONFIG=""
 
 if [ -n "$CONFIG" ]; then
