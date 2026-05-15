@@ -5,10 +5,25 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.2.2] — 2026-05-15
+
+> Test-Infrastruktur, Doku und CI. Folge-Release zu v1.2.1.
+
+### Fixed
+- **`hooks/tests/test-runner.sh`** war auf v1.1-Convention hängengeblieben (env-vars + exit code 1). Komplett neu gegen v1.2-Hook-API: stdin-JSON für `tool_input.*`, exit code 2 für PreToolUse-Blocks, file-path-arg für `precommit-ticket-id-required.sh`. Tests sind jetzt 22/22 grün statt 6/11.
+- Secret-like Test-Patterns werden zur Laufzeit aus Fragmenten zusammengebaut, damit `pre-edit-secret-body.sh` das Test-File beim Edit nicht selbst blockt.
+
+### Added
+- **`docs/QUICKSTART.md`** — dokumentierter Golden Path für eine neue App (~20 Min), inklusive Plugin-Cache-Resolver-Pattern (`find ~/.claude/plugins/cache/.../scripts -name X | sort -V | tail -1`).
+- **`.github/workflows/hook-tests.yml`** — CI-Workflow für jeden Push/PR: JSON-Manifest-Validation, Version-Konsistenz-Check zwischen marketplace.json und plugin.json, Hook-Event-Whitelist (verhindert die hooks.json-Schema-Bombe), 22 Hook-Tests, shellcheck.
+- **Test-Coverage** verdoppelt: escalation-counter mit 3-fail-flag und reset-state, precommit mit breaking-marker und merge-skip, pre-edit-plugin mit diag-allowed und agents-blocked.
+
+### Internal
+- `.gitignore`: `STATUS.md` (auto-gen) und `.claude/worktrees/` ausgeschlossen.
+
 ## [1.2.1] — 2026-05-15
 
 ### Fixed
-
 - **Hooks sourcen `$CLAUDE_PROJECT_DIR/.env`.** Bisher lasen die Hooks `CURRENT_OPERATOR`, `APP_NAME`, `CLICKUP_*`, `SLACK_BOT_TOKEN` etc. direkt aus der Shell-env — was nur funktionierte, wenn der User die Vars selbst exportiert hatte. In Worktrees ohne sourced `.env` zeigte `/where` und das Session-Briefing daher `operator: unknown` und `App: (unbekannt)`. Fix in den fünf betroffenen Hooks:
   - `session-start-identity-pin.sh` (pinnt jetzt korrekten Operator in `session-identity.json`)
   - `session-start-briefing.sh` (Briefing-Box zeigt korrekten Operator + App)
