@@ -1,0 +1,72 @@
+name: Hook-Tests + Manifest-Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-manifests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON manifests
+        run: |
+          python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python3 -m json.tool plugins/work-convention/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool plugins/work-convention/hooks/hooks.json > /dev/null
+          echo "✅ All 3 manifests valid JSON"
+
+      - name: Version-Konsistenz prüfen (marketplace.json vs. plugin.json)
+        run: |
+          MARKET_VER=$(jq -r '.plugins[0].version' .claude-plugin/marketplace.json)
+          PLUGIN_VER=$(jq -r '.version' plugins/work-convention/.claude-plugin/plugin.json)
+          MARKET_TOP=$(jq -r '.version' .claude-plugin/marketplace.json)
+          echo "marketplace.json   .version           = $MARKET_TOP"
+          echo "marketplace.json   .plugins[0].version = $MARKET_VER"
+          echo "plugin.json        .version           = $PLUGIN_VER"
+          if [ "$MARKET_VER" != "$PLUGIN_VER" ] || [ "$MARKET_TOP" != "$PLUGIN_VER" ]; then
+            echo "❌ Versions inkonsistent"
+            exit 1
+          fi
+          echo "✅ Alle drei Versionen konsistent ($PLUGIN_VER)"
+
+      - name: hooks.json Event-Validität
+        run: |
+          # Nur Claude-Code-valide Events erlaubt — PreCommit/PrePush würden
+          # das gesamte Plugin-Hook-System killen (Schema-Validierung all-or-nothing).
+          VALID='SessionStart|SessionEnd|UserPromptSubmit|UserPromptExpansion|PreToolUse|PostToolUse|PostToolUseFailure|PostToolBatch|Notification|Stop|StopFailure|SubagentStart|SubagentStop|PreCompact|PostCompact|PermissionRequest|PermissionDenied|Setup|TeammateIdle|TaskCreated|TaskCompleted|Elicitation|ElicitationResult|ConfigChange|WorktreeCreate|WorktreeRemove|InstructionsLoaded|CwdChanged|FileChanged'
+          INVALID=$(jq -r '.hooks | keys[]' plugins/work-convention/hooks/hooks.json \
+            | grep -vE "^($VALID)$" || true)
+          if [ -n "$INVALID" ]; then
+            echo "❌ Invalide Events in hooks.json: $INVALID"
+            exit 1
+          fi
+          echo "✅ Alle hooks.json-Events valid"
+
+  hook-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq + Python
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq python3 >/dev/null
+
+      - name: Run hook test suite
+        run: bash plugins/work-convention/hooks/tests/test-runner.sh
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck on all hook scripts
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck >/dev/null
+          # Nur warnen, nicht failen — Hooks haben legit Patterns die shellcheck
+          # nicht versteht (z.B. $() in heredocs)
+          shellcheck -S error plugins/work-convention/hooks/*.sh \
+                              plugins/work-convention/scripts/*.sh \
+            || { echo "::warning::shellcheck flagged errors above"; exit 0; }
