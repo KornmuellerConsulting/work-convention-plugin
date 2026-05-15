@@ -8,6 +8,15 @@ set -euo pipefail
 STATE_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/state"
 mkdir -p "$STATE_DIR"
 
+# v1.2.1: source .env so per-project vars (CURRENT_OPERATOR, APP_NAME, …) are available
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_DIR/.env"
+  set +a
+fi
+
 OPERATOR="${CURRENT_OPERATOR:-unknown}"
 WORKTREE="$(pwd)"
 BRANCH="$(git branch --show-current 2>/dev/null || echo 'unknown')"

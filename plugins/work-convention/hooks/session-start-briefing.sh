@@ -8,6 +8,14 @@ set -euo pipefail
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 STATE_DIR="$PROJECT_DIR/.claude/state"
 
+# v1.2.1: source .env so per-project vars (CURRENT_OPERATOR, APP_NAME, …) are available
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_DIR/.env"
+  set +a
+fi
+
 cat <<MSG
 ═══════════════════════════════════════════════════════
   Session-Briefing

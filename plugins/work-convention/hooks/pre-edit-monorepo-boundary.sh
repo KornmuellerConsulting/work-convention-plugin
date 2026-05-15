@@ -9,6 +9,16 @@ set -uo pipefail
 INPUT=$(cat 2>/dev/null || echo '{}')
 FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -z "$FILE" ] && exit 0
+
+# v1.2.1: source .env so APP_NAME is available
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_DIR/.env"
+  set +a
+fi
+
 [ -z "${APP_NAME:-}" ] && exit 0
 
 if [[ "$FILE" =~ /apps/([^/]+)/ ]]; then

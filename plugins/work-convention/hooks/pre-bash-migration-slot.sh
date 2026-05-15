@@ -14,7 +14,16 @@ if ! echo "$CMD" | grep -qE 'supabase\s+(db|migration)|prisma\s+migrate|drizzle.
   exit 0
 fi
 
-LOCK_FILE="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/state/migration.lock"
+# v1.2.1: source .env so CURRENT_OPERATOR is available
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_DIR/.env"
+  set +a
+fi
+
+LOCK_FILE="$PROJECT_DIR/.claude/state/migration.lock"
 OPERATOR="${CURRENT_OPERATOR:-unknown}"
 
 if [ -f "$LOCK_FILE" ]; then

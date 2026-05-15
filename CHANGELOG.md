@@ -5,6 +5,37 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.2.1] — 2026-05-15
+
+### Fixed
+
+- **Hooks sourcen `$CLAUDE_PROJECT_DIR/.env`.** Bisher lasen die Hooks `CURRENT_OPERATOR`, `APP_NAME`, `CLICKUP_*`, `SLACK_BOT_TOKEN` etc. direkt aus der Shell-env — was nur funktionierte, wenn der User die Vars selbst exportiert hatte. In Worktrees ohne sourced `.env` zeigte `/where` und das Session-Briefing daher `operator: unknown` und `App: (unbekannt)`. Fix in den fünf betroffenen Hooks:
+  - `session-start-identity-pin.sh` (pinnt jetzt korrekten Operator in `session-identity.json`)
+  - `session-start-briefing.sh` (Briefing-Box zeigt korrekten Operator + App)
+  - `stop-handoff-comment.sh` (Hand-off-ClickUp-Comment hat korrekten Operator)
+  - `pre-bash-migration-slot.sh` (Migration-Lock-Holder korrekt)
+  - `pre-edit-monorepo-boundary.sh` (Cross-App-Edit-Check greift wieder)
+
+  Pattern in jedem Hook:
+  ```bash
+  PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+  if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$PROJECT_DIR/.env"
+    set +a
+  fi
+  ```
+
+### Note für Worktree-Nutzer
+
+`.env` ist gitignored und kommt daher nicht automatisch ins Worktree mit. Workaround bis v1.3 einen Auto-Setup-Mechanismus bringt:
+
+```bash
+ln -sfn ~/path/to/main-repo/.env <worktree>/.env
+ln -sfn ~/path/to/main-repo/apps/<app>/.env <worktree>/apps/<app>/.env
+```
+
 ## [1.2.0] — 2026-05-11
 
 ### Critical Fixes (Production-Blocker)

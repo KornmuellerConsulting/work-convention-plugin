@@ -8,6 +8,15 @@ set -euo pipefail
 STATE_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/state"
 ACTIVE_TICKET="$STATE_DIR/active-ticket.txt"
 
+# v1.2.1: source .env so CURRENT_OPERATOR, CLICKUP_* vars are available
+PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+if [ -f "$PROJECT_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$PROJECT_DIR/.env"
+  set +a
+fi
+
 [ ! -f "$ACTIVE_TICKET" ] && exit 0
 TICKET=$(cat "$ACTIVE_TICKET" 2>/dev/null)
 [ -z "$TICKET" ] && exit 0
