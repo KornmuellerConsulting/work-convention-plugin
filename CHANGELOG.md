@@ -5,6 +5,47 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.2.0] — 2026-05-11
+
+### Critical Fixes (Production-Blocker)
+
+- **Plugin-Hooks feuern endlich.** Root-Cause: invalide Hook-Events `PreCommit` und `PrePush` in `hooks.json` führten dazu dass Claude Code das **gesamte** Plugin-Hook-System ablehnte (Schema-Validierung all-or-nothing). Beide entfernt, alle anderen Hooks (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop) feuern jetzt korrekt.
+- **PreToolUse/PostToolUse-Hooks parsen stdin-JSON statt env-vars.** Claude Code übergibt Tool-Input via stdin als JSON (`{"tool_input":{"command":...}}`, `{"tool_input":{"file_path":...}}` etc.), nicht als `CLAUDE_TOOL_INPUT_*` env-vars. Alle Schutz-Hooks umgebaut auf `jq -r '.tool_input.command'` aus stdin.
+- **`notify.sh` findet Sub-Scripts wieder.** Lookup-Strategie: `${CLAUDE_PLUGIN_ROOT}/scripts/` wenn gesetzt (z.B. von Hooks), sonst `$(dirname "$0")` (Self-Lookup beim direkten Call). Silent-fail-Modus für status/info/warning ist jetzt warn-loud.
+
+### New: Git-Hooks für Commit/Push-Schutz
+
+- **`install-git-hooks.sh`** als App-lokaler Installer hinzugefügt. Setzt `.git/hooks/commit-msg`, `.git/hooks/pre-commit` und `.git/hooks/pre-push` mit Wrapper-Scripts die auf Plugin-Cache zeigen.
+- Bisherige Plugin-Hooks `precommit-ticket-id-required.sh`, `gitleaks-precommit.sh`, `pre-branch-fresh.sh`, `pre-push-tests.sh` jetzt als git-Hooks statt Claude-Code-Hooks (waren keine validen Events).
+- Verwendung pro App einmal:
+  ```bash
+  cd /path/to/your/app
+  bash ~/.claude/plugins/cache/kornmueller-empire/work-convention/1.2.0/scripts/install-git-hooks.sh
+  ```
+
+### WhatsApp-Notifications
+
+- Cooldown reduziert von 30 Min global auf **5 Min subject-hash-basiert pro Empfänger**. Verschiedene Subjects werden nicht mehr gegenseitig blockiert.
+- Bei severity `blocker`/`confirm` kein Cooldown (kritische Notifications immer durch).
+
+### Minor
+
+- `healthcheck.sh` prüft git-Hooks-Installation, `CLICKUP_TASKS_LIST_ID`, sowie `jq` als kritisches Tool.
+- `pre-branch-fresh.sh` warnt jetzt auch bei diverged-State (vorher silently durchgelassen).
+- `pre-edit-plugin-files.sh` erlaubt `.claude/hooks/diag-*` für lokale Diagnose-Hooks.
+- `/status`-Command mit graceful-fallback wenn TASKS.md/STATUS.md fehlen.
+- Commands `blocked.md`, `escalate.md`, `newapp.md`, `ticket.md` referenzieren jetzt `${CLAUDE_PLUGIN_ROOT}/scripts/` statt der nicht existenten App-lokalen `.claude/scripts/`.
+
+### Migration auf v1.2.0
+
+```bash
+# In jeder App:
+claude plugin update work-convention@kornmueller-empire
+
+# Einmalig in jeder App git-Hooks installieren:
+bash ~/.claude/plugins/cache/kornmueller-empire/work-convention/1.2.0/scripts/install-git-hooks.sh
+```
+
 ## [1.1.1] — 2026-05-11
 
 ### Fixed

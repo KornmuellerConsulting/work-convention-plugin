@@ -2,13 +2,14 @@
 # =============================================================================
 # pre-bash-migration-slot.sh — PreToolUse:Bash
 # Verhindert parallele Migrations zwischen Operatoren.
+# v1.2: stdin-JSON.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
-CMD="${CLAUDE_TOOL_INPUT_command:-}"
+INPUT=$(cat 2>/dev/null || echo '{}')
+CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
-# Nur bei Migration-Commands
 if ! echo "$CMD" | grep -qE 'supabase\s+(db|migration)|prisma\s+migrate|drizzle.*migrate'; then
   exit 0
 fi
@@ -27,14 +28,11 @@ Wenn der andere Operator wirklich nicht migriert:
 
 Sonst: warten bis Slot frei.
 MSG
-    exit 1
+    exit 2
   fi
 fi
 
-# Slot belegen
 mkdir -p "$(dirname "$LOCK_FILE")"
 echo "$OPERATOR" > "$LOCK_FILE"
-
-# Auto-cleanup nach 30min
 ( sleep 1800 && rm -f "$LOCK_FILE" 2>/dev/null ) &
 exit 0

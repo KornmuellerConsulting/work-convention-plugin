@@ -2,13 +2,14 @@
 # =============================================================================
 # pre-bash-test-pre-push.sh — PreToolUse:Bash
 # Triggert pre-push-tests.sh wenn git push ausgeführt wird.
+# v1.2: stdin-JSON.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
-CMD="${CLAUDE_TOOL_INPUT_command:-}"
+INPUT=$(cat 2>/dev/null || echo '{}')
+CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
-# Match git push (nicht push --no-verify)
 if echo "$CMD" | grep -qE '^[[:space:]]*git[[:space:]]+push' && ! echo "$CMD" | grep -q '\-\-no-verify'; then
   PRE_PUSH_HOOK="${CLAUDE_PLUGIN_ROOT}/hooks/pre-push-tests.sh"
   if [ -x "$PRE_PUSH_HOOK" ]; then
@@ -18,7 +19,7 @@ if echo "$CMD" | grep -qE '^[[:space:]]*git[[:space:]]+push' && ! echo "$CMD" | 
 
 Lokale Tests fixen oder bewusst override mit --no-verify (mit Decision-Block).
 MSG
-      exit 1
+      exit 2
     }
   fi
 fi

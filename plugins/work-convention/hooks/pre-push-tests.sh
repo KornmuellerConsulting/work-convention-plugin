@@ -1,21 +1,15 @@
 #!/usr/bin/env bash
 # =============================================================================
-# pre-push-tests.sh — PrePush
-# Audit-Fix #18: Lokale Test-Verifikation vor Push.
+# pre-push-tests.sh — git pre-push hook
+# Lokale Test-Verifikation vor Push.
+# v1.2: läuft als echter git-Hook.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-APP_DIR="$PROJECT_DIR"
+APP_DIR="$(pwd)"
+[ ! -f "$APP_DIR/package.json" ] && exit 0
 
-# Detection: pnpm/npm/yarn?
-if [ ! -f "$APP_DIR/package.json" ]; then
-  exit 0
-fi
-
-# Versuche test-Script
 if grep -q '"test"' "$APP_DIR/package.json" 2>/dev/null; then
-  cd "$APP_DIR"
   if command -v pnpm &>/dev/null; then
     pnpm run test --if-present 2>&1 | tail -20 || exit 1
   elif command -v npm &>/dev/null; then

@@ -10,4 +10,4 @@ Args: `<new|status|comment|fetch> [args]`
 - `/ticket comment TICKET-42 "Comment"` — Comment posten
 - `/ticket fetch TICKET-42` — Task-Details lesen
 
-Wrapper für `python3 .claude/scripts/clickup-spiegel.py ...`.
+Wrapper für `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/clickup-spiegel.py ...`.

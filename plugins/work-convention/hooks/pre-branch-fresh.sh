@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# pre-branch-fresh.sh — PrePush
+# pre-branch-fresh.sh — git pre-push hook
 # Verhindert Push wenn local hinter origin/main ist.
+# v1.2: läuft als echter git-Hook.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
 git fetch origin main --quiet 2>/dev/null || true
 
@@ -26,5 +27,20 @@ Lösung:
   git push origin main
 MSG
   exit 1
+elif [ "$REMOTE" = "$BASE" ]; then
+  # Local ist vor remote (fast-forward möglich) — ok
+  exit 0
+else
+  cat <<MSG >&2
+⚠️  WARNING: Local und remote sind diverged.
+
+LOCAL:  $LOCAL
+REMOTE: $REMOTE
+BASE:   $BASE
+
+Lösung:
+  git pull --rebase origin main
+  (oder fix conflicts manuell)
+MSG
+  exit 1
 fi
-exit 0

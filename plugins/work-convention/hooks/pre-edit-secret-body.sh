@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
 # pre-edit-secret-body.sh — PreToolUse:Edit/Write
-# Audit-Fix #17: Defense 2nd-line gegen Secret-Patterns in File-Edits.
+# Defense 2nd-line gegen Secret-Patterns in File-Edits.
+# v1.2: stdin-JSON.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
-CONTENT="${CLAUDE_TOOL_INPUT_new_string:-}"
-[ -z "$CONTENT" ] && CONTENT="${CLAUDE_TOOL_INPUT_content:-}"
+INPUT=$(cat 2>/dev/null || echo '{}')
+# Edit-Tool: new_string. Write-Tool: content.
+CONTENT=$(echo "$INPUT" | jq -r '.tool_input.new_string // .tool_input.content // empty' 2>/dev/null)
 [ -z "$CONTENT" ] && exit 0
 
 PATTERNS=(
@@ -30,7 +32,7 @@ Lösung:
   - Secrets in .env (nicht committed)
   - Code-Referenzen via process.env.VAR_NAME
 MSG
-    exit 1
+    exit 2
   fi
 done
 exit 0

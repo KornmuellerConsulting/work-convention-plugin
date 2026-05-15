@@ -1,55 +1,47 @@
 #!/usr/bin/env bash
 # =============================================================================
 # block-prod-destructive.sh — PreToolUse:Bash
-# Blockt destructive SQL/Commands gegen Production-DB.
+# Blockt destruktive Operationen mit Produktions-Bezug.
+# v1.2: stdin-JSON.
 # =============================================================================
-set -euo pipefail
-CMD="${CLAUDE_TOOL_INPUT_command:-}"
+set -uo pipefail
+
+INPUT=$(cat 2>/dev/null || echo '{}')
+CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
-# Indikatoren für Prod-Targeting
-PROD_INDICATORS=(
-  "prod"
-  "production"
-  "live"
-  "SUPABASE_PROJECT_REF_PROD"
+# Prod-Indikator + Destructive-Keyword muss BEIDES vorhanden sein
+HAS_PROD=0
+echo "$CMD" | grep -qiE '\b(prod|production|live)\b' && HAS_PROD=1
+[ "$HAS_PROD" -eq 0 ] && exit 0
+
+DESTRUCTIVE_PATTERNS=(
+  'DROP[[:space:]]+TABLE'
+  'DROP[[:space:]]+DATABASE'
+  'TRUNCATE[[:space:]]+TABLE'
+  'DELETE[[:space:]]+FROM'
+  'rm[[:space:]]+-rf'
+  'sudo[[:space:]]+rm'
+  'mkfs\.'
+  'dd[[:space:]]+if='
+  'shutdown'
+  'reboot'
 )
 
-# Destructive keywords
-DESTRUCTIVE=(
-  "DROP TABLE"
-  "DROP DATABASE"
-  "TRUNCATE"
-  "DELETE FROM"
-  "DROP SCHEMA"
-)
+for pattern in "${DESTRUCTIVE_PATTERNS[@]}"; do
+  if echo "$CMD" | grep -qiE "$pattern"; then
+    cat <<MSG >&2
+🚫 BLOCKED: Destruktiver Befehl mit Prod-Bezug.
 
-CMD_UPPER=$(echo "$CMD" | tr '[:lower:]' '[:upper:]')
+Pattern: $pattern
+Command: $(echo "$CMD" | head -c 200)
 
-is_prod=false
-for ind in "${PROD_INDICATORS[@]}"; do
-  if echo "$CMD_UPPER" | grep -qiE "\b$ind\b"; then
-    is_prod=true; break
-  fi
-done
-
-is_destructive=false
-for kw in "${DESTRUCTIVE[@]}"; do
-  if echo "$CMD_UPPER" | grep -q "$kw"; then
-    is_destructive=true; break
-  fi
-done
-
-if $is_prod && $is_destructive; then
-  cat <<MSG >&2
-🚫 BLOCKED: Destructive Command gegen Production erkannt.
-
-Command: $CMD
-
-Production-Operations laufen via:
-  - Migrations: CI-Workflow ci-deploy-prod.yaml (5min Abort-Window)
-  - Manuelle Eingriffe: Decision-Block + beide Co-Founder confirm
+Hard-Block. Wenn du wirklich willst:
+  1. Backup verifizieren
+  2. Confirmation in DECISIONS.md dokumentieren
+  3. Manuell außerhalb von Claude Code ausführen
 MSG
-  exit 1
-fi
+    exit 2
+  fi
+done
 exit 0

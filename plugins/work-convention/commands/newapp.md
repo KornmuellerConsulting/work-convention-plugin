@@ -18,5 +18,5 @@ cd apps/<name>
 claude plugin install KornmuellerConsulting/work-convention-plugin
 cp .env.example .env
 # .env ausfüllen
-bash .claude/scripts/healthcheck.sh
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/healthcheck.sh
 ```

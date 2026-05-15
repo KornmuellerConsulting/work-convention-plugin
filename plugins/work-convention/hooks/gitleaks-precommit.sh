@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # =============================================================================
-# gitleaks-precommit.sh — PreCommit
+# gitleaks-precommit.sh — git pre-commit hook
 # Scant staged files auf Secrets via gitleaks.
+# v1.2: läuft als echter git-Hook via core.hooksPath.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
 if ! command -v gitleaks &>/dev/null; then
   echo "⚠️  gitleaks nicht installiert — überspringe Secret-Scan." >&2
@@ -11,7 +12,9 @@ if ! command -v gitleaks &>/dev/null; then
   exit 0
 fi
 
-CONFIG="${CLAUDE_PLUGIN_ROOT}/scripts/.gitleaks.toml"
+# Plugin-Root: entweder env-var (von wrapper-script gesetzt) oder relativ zum Script
+PLUGIN_ROOT="${PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+CONFIG="$PLUGIN_ROOT/scripts/.gitleaks.toml"
 [ -f "$CONFIG" ] || CONFIG=""
 
 if [ -n "$CONFIG" ]; then

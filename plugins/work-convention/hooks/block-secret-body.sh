@@ -2,21 +2,23 @@
 # =============================================================================
 # block-secret-body.sh — PreToolUse:Bash
 # Verhindert dass Secrets in Bash-Bodies landen (Logs, Pipes, Redirects).
+# v1.2: liest tool_input über stdin-JSON statt env-var.
 # =============================================================================
-set -euo pipefail
-CMD="${CLAUDE_TOOL_INPUT_command:-}"
+set -uo pipefail
+
+INPUT=$(cat 2>/dev/null || echo '{}')
+CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
-# Pattern für gängige Secret-Formate
 PATTERNS=(
-  'sk-[a-zA-Z0-9_-]{20,}'         # Anthropic, OpenAI etc.
-  'xoxb-[0-9]{10,}-[a-zA-Z0-9]{20,}'  # Slack Bot-Token
-  'ghp_[a-zA-Z0-9]{36}'           # GitHub PAT
-  'AIza[0-9A-Za-z_-]{35}'         # Google API
-  'AKIA[0-9A-Z]{16}'              # AWS Access Key
-  'pk_(live|test)_[a-zA-Z0-9]{24,}' # Stripe public
-  'rk_(live|test)_[a-zA-Z0-9]{24,}' # Stripe restricted
-  'sk_(live|test)_[a-zA-Z0-9]{24,}' # Stripe secret
+  'sk-[a-zA-Z0-9_-]{20,}'
+  'xoxb-[0-9]{10,}-[a-zA-Z0-9]{20,}'
+  'ghp_[a-zA-Z0-9]{36}'
+  'AIza[0-9A-Za-z_-]{35}'
+  'AKIA[0-9A-Z]{16}'
+  'pk_(live|test)_[a-zA-Z0-9]{24,}'
+  'rk_(live|test)_[a-zA-Z0-9]{24,}'
+  'sk_(live|test)_[a-zA-Z0-9]{24,}'
 )
 
 for pattern in "${PATTERNS[@]}"; do
@@ -32,7 +34,7 @@ Lösung:
   - In .env (nicht committed)
   - Niemals inline im Bash-Body
 MSG
-    exit 1
+    exit 2
   fi
 done
 exit 0

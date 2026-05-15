@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
 # pre-edit-monorepo-boundary.sh — PreToolUse:Edit/Write
-# Blockt Cross-App-Edits (apps/<other>/...) wenn man in apps/<this>/ arbeitet.
+# Blockt Cross-App-Edits.
+# v1.2: stdin-JSON.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
-FILE="${CLAUDE_TOOL_INPUT_file_path:-}"
+INPUT=$(cat 2>/dev/null || echo '{}')
+FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -z "$FILE" ] && exit 0
 [ -z "${APP_NAME:-}" ] && exit 0
 
-# Match apps/<name>/...
 if [[ "$FILE" =~ /apps/([^/]+)/ ]]; then
   TARGET_APP="${BASH_REMATCH[1]}"
   if [ "$TARGET_APP" != "$APP_NAME" ]; then
@@ -22,7 +23,7 @@ Lösung:
   - Geteilter Code → packages/shared-types/ oder neues packages/shared-*/
   - Bewusste Multi-App-Operation → in der jeweiligen App ausführen
 MSG
-    exit 1
+    exit 2
   fi
 fi
 exit 0

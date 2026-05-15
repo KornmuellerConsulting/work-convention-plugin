@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# healthcheck.sh — End-to-End-Verify aller Plugin-Komponenten (v1.1+)
+# healthcheck.sh — End-to-End-Verify aller Plugin-Komponenten (v1.2+)
 # =============================================================================
 set -uo pipefail
 
@@ -18,6 +18,7 @@ echo "═══ Plugin-Files (Plugin-Cache) ═══"
 [ -f "$SCRIPT_DIR/notify.sh" ] && ok "notify.sh" || fail "notify.sh missing"
 [ -f "$SCRIPT_DIR/notify-slack.sh" ] && ok "notify-slack.sh" || fail "notify-slack.sh missing"
 [ -f "$SCRIPT_DIR/clickup-spiegel.py" ] && ok "clickup-spiegel.py" || fail "clickup-spiegel.py missing"
+[ -f "$SCRIPT_DIR/install-git-hooks.sh" ] && ok "install-git-hooks.sh (v1.2)" || warn "install-git-hooks.sh missing"
 
 PARENT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 HOOKS_COUNT=$(find "$PARENT_DIR/hooks" -maxdepth 1 -name "*.sh" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -25,6 +26,22 @@ HOOKS_COUNT=$(find "$PARENT_DIR/hooks" -maxdepth 1 -name "*.sh" -type f 2>/dev/n
 
 [ -d "$PARENT_DIR/agents" ] && ok "agents/ dir" || fail "agents/ missing"
 [ -d "$PARENT_DIR/commands" ] && ok "commands/ dir" || fail "commands/ missing"
+
+echo ""
+echo "═══ Git-Hooks (App-lokal in .git/hooks/) ═══"
+if git -C "$APP_DIR" rev-parse --git-dir &>/dev/null; then
+  GIT_DIR=$(git -C "$APP_DIR" rev-parse --git-dir)
+  [[ "$GIT_DIR" = /* ]] || GIT_DIR="$APP_DIR/$GIT_DIR"
+  for HOOK_NAME in commit-msg pre-commit pre-push; do
+    if [ -x "$GIT_DIR/hooks/$HOOK_NAME" ] && grep -q "work-convention" "$GIT_DIR/hooks/$HOOK_NAME" 2>/dev/null; then
+      ok "$HOOK_NAME installed"
+    else
+      warn "$HOOK_NAME nicht installiert (run: bash $SCRIPT_DIR/install-git-hooks.sh)"
+    fi
+  done
+else
+  warn "Kein git-repo erkannt — git-Hooks-Check übersprungen"
+fi
 
 echo ""
 echo "═══ App-Config (.env in $APP_DIR) ═══"
@@ -41,6 +58,8 @@ echo ""
 echo "═══ ClickUp ═══"
 [ -n "${CLICKUP_API_TOKEN:-}" ] && ok "CLICKUP_API_TOKEN gesetzt" || warn "CLICKUP_API_TOKEN fehlt"
 [ -n "${CLICKUP_TEAM_ID:-}" ] && ok "CLICKUP_TEAM_ID=$CLICKUP_TEAM_ID" || warn "CLICKUP_TEAM_ID fehlt"
+[ -n "${CLICKUP_TASKS_LIST_ID:-}" ] && ok "CLICKUP_TASKS_LIST_ID gesetzt" || warn "CLICKUP_TASKS_LIST_ID fehlt — run: python3 $SCRIPT_DIR/clickup-spiegel.py bootstrap-space"
+
 if [ -n "${CLICKUP_API_TOKEN:-}" ]; then
   RESPONSE=$(curl -sS --max-time 5 -H "Authorization: $CLICKUP_API_TOKEN" "https://api.clickup.com/api/v2/team" 2>/dev/null || echo "")
   echo "$RESPONSE" | grep -q "teams" && ok "ClickUp-API erreichbar" || warn "ClickUp-API-Call fehlgeschlagen"
@@ -65,7 +84,7 @@ echo ""
 echo "═══ Tools ═══"
 command -v git &>/dev/null && ok "git" || fail "git fehlt"
 command -v python3 &>/dev/null && ok "python3" || fail "python3 fehlt"
-command -v jq &>/dev/null && ok "jq" || warn "jq fehlt"
+command -v jq &>/dev/null && ok "jq (wichtig für Hooks)" || fail "jq fehlt — bitte installieren: brew install jq"
 command -v gh &>/dev/null && ok "gh-cli" || warn "gh-cli fehlt"
 command -v gitleaks &>/dev/null && ok "gitleaks" || warn "gitleaks fehlt"
 command -v claude &>/dev/null && ok "claude-CLI" || warn "claude-CLI fehlt"

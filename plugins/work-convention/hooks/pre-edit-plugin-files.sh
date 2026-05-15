@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
 # pre-edit-plugin-files.sh — PreToolUse:Edit/Write
-# Blockt direkte Edits in .claude/{hooks,agents,skills,commands,scripts,settings.json}.
-# Plugin-Updates gehen nur über Plugin-Repo.
+# Blockt direkte Edits in App-lokalen .claude/plugin-folders.
+# v1.2: stdin-JSON.
 # =============================================================================
-set -euo pipefail
+set -uo pipefail
 
-FILE="${CLAUDE_TOOL_INPUT_file_path:-}"
+INPUT=$(cat 2>/dev/null || echo '{}')
+FILE=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -z "$FILE" ] && exit 0
 
 # Erlaubte App-lokale Files
@@ -14,9 +15,9 @@ case "$FILE" in
   *.claude/settings.local.json) exit 0 ;;
   *.claude/state/*) exit 0 ;;
   *.claude/app.json) exit 0 ;;
+  *.claude/hooks/diag-*) exit 0 ;;  # Diagnose-Hooks dürfen lokal sein
 esac
 
-# Geblockte Plugin-Files
 BLOCKED_PATTERNS=(
   ".claude/hooks/"
   ".claude/agents/"
@@ -39,7 +40,7 @@ App-lokale Anpassungen:
   - App-Config: .claude/app.json
   - Plugin-PR: editiere Plugin-Repo, dann claude plugin update
 MSG
-    exit 1
+    exit 2
   fi
 done
 exit 0

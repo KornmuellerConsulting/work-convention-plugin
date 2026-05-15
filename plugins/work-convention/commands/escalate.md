@@ -16,7 +16,7 @@ touch .claude/state/solver-activated.flag
 echo "Aktiviere Solver-Subagent für: $REASON"
 
 # Layer 3:
-bash .claude/scripts/notify.sh blocker "Layer-3-Eskalation: $REASON" "..."
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh blocker "Layer-3-Eskalation: $REASON" "..."
 
 # Reset:
 rm -f .claude/state/escalation-3fail.flag
