@@ -81,7 +81,7 @@ Siehe [CHANGELOG.md](./CHANGELOG.md) für die volle History.
 
 ```bash
 # 1. Änderungen lokal machen
-cd ~/Downloads/work-convention-plugin-new
+cd ~/Documents/Kornmueller/work-convention-plugin
 
 # 2. Commit (Format unten beachten)
 git add -A
@@ -93,7 +93,7 @@ git tag vX.Y.Z
 git push --tags
 
 # 4. In jeder App updaten
-cd ~/Downloads/apps/apps/<app-name>
+cd ~/Documents/Kornmueller/apps/apps/<app-name>
 claude plugin marketplace update kornmueller-empire
 claude plugin update work-convention@kornmueller-empire
 
@@ -123,7 +123,7 @@ Vor jedem Release:
    ```
 2. **Healthcheck in Test-App ausführen**:
    ```bash
-   cd ~/Downloads/apps/apps/notification-test
+   cd ~/Documents/Kornmueller/apps/apps/notification-test
    bash ~/.claude/plugins/cache/kornmueller-empire/work-convention/<version>/scripts/healthcheck.sh
    ```
 3. **Hook-Loader-Check**:
