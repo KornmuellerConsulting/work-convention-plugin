@@ -61,7 +61,8 @@ work-convention-plugin/
 
 ## Setup pro App
 
-Vollständige Setup-Anleitung: [docs/SETUP.md](./docs/SETUP.md)
+- **Quickstart (~20 Min)**: [docs/QUICKSTART.md](./docs/QUICKSTART.md) — Golden Path mit Bootstrap-Skript
+- **Vollständige Setup-Anleitung**: [docs/SETUP.md](./docs/SETUP.md) — alle Pre-Setups (ClickUp/Slack/Pushover/WhatsApp/Vercel/Supabase)
 
 ## Co-Founder
 
