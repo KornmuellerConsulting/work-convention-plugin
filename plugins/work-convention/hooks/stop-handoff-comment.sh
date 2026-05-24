@@ -8,12 +8,14 @@ set -euo pipefail
 STATE_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/state"
 ACTIVE_TICKET="$STATE_DIR/active-ticket.txt"
 
-# v1.2.1: source .env so CURRENT_OPERATOR, CLICKUP_* vars are available
+# v1.2.3: source .env so CURRENT_OPERATOR, CLICKUP_* vars are available.
+# bash -n guard + skip-on-error: a single quoting bug in .env
+# (e.g. ")" in a password) must not kill the whole hand-off-post.
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
-if [ -f "$PROJECT_DIR/.env" ]; then
+if [ -f "$PROJECT_DIR/.env" ] && bash -n "$PROJECT_DIR/.env" 2>/dev/null; then
   set -a
   # shellcheck disable=SC1091
-  source "$PROJECT_DIR/.env"
+  source "$PROJECT_DIR/.env" 2>/dev/null || true
   set +a
 fi
 
