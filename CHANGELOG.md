@@ -5,6 +5,13 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.2.3] — 2026-05-24
+
+> Patch-Release: Stop-Hook robust gegen `.env`-Quoting-Fehler.
+
+### Fixed
+- **`hooks/stop-handoff-comment.sh`** brach unter `set -euo pipefail` komplett ab, wenn `.env` einen Syntax-Fehler hatte (z.B. ein unquoted `)` in einem Passwort-Wert) — der Hand-off-ClickUp-Comment wurde nie gepostet und der Stop-Hook schlug in Schleife fehl. Fix: `bash -n`-Syntax-Guard vor dem `source` plus `source … 2>/dev/null || true`. Ungültiges `.env` wird jetzt übersprungen (`CURRENT_OPERATOR`/`CLICKUP_*` fallen leer zurück), der Hand-off-Comment landet trotzdem. (LAV-559)
+
 ## [1.2.2] — 2026-05-15
 
 > Test-Infrastruktur, Doku und CI. Folge-Release zu v1.2.1.
