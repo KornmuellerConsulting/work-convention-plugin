@@ -163,6 +163,40 @@ Beim Start läuft `session-start-briefing.sh`. Du siehst:
 
 Beispiel-Prompt: `Status zeigen` → führt `/status` aus.
 
+## Advisor-Modell (optional, einmalig pro Person)
+
+Claude Code kann bei unsicheren Entscheidungen automatisch ein zweites, stärkeres
+Modell konsultieren ("Advisor", ab Claude Code v2.1.170). Ist rein persönlich —
+das Plugin verteilt oder erzwingt hier nichts, jede*r stellt sich das selbst ein.
+
+**Wichtig: nur in einer echten Terminal-Session, nicht im Claude-Desktop-Chat-Fenster.**
+Im Desktop-Chat blockt der Command mit "opens an interactive panel and isn't
+available in this environment" — das ist eine Einschränkung der Desktop-Oberfläche,
+kein Bug. In einem echten Terminal (`claude` in Terminal.app/iTerm) funktioniert er normal.
+
+```bash
+# in einer Terminal-Session:
+/advisor opus     # oder: sonnet, fable
+/advisor          # Picker mit allen erlaubten Kombinationen
+/advisor off      # deaktivieren
+```
+
+Alternative ohne Terminal-Picker: direkt in `~/.claude/settings.json` eintragen:
+
+```json
+{
+  "advisorModel": "opus"
+}
+```
+
+Ab Plugin-Version 1.2.4 lässt `pre-edit-plugin-files.sh` das zu — der Hook schützt
+in `settings.json` nur noch `enabledPlugins`/`extraKnownMarketplaces` (echtes
+Plugin-Wiring), nicht mehr generische Settings wie `advisorModel`.
+
+Erlaubte Advisor-Modelle hängen vom Hauptmodell ab (Sonnet-5-Main akzeptiert
+`sonnet`, `opus`, `fable` als Advisor; ein Sonnet-4.6-Advisor wird abgelehnt).
+Details: [offizielle Advisor-Doku](https://code.claude.com/docs/en/advisor).
+
 ## Häufige Fehler beim ersten Setup
 
 | Fehler | Lösung |
