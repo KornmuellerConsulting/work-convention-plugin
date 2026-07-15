@@ -20,7 +20,7 @@
 - `pre-bash-test-pre-push.sh` — Triggert pre-push-tests bei git push
 
 ## PreToolUse:Edit/Write
-- `pre-edit-plugin-files.sh` — Blockt direkte Edits in `.claude/{hooks,agents,...}`
+- `pre-edit-plugin-files.sh` — Blockt direkte Edits in `.claude/{hooks,agents,...}`; bei `settings.json` nur die Plugin-Wiring-Keys `enabledPlugins`/`extraKnownMarketplaces` (generische Settings wie `advisorModel`, `theme` sind frei)
 - `pre-edit-monorepo-boundary.sh` — Blockt Cross-App-Edits
 - `pre-edit-secret-body.sh` — Defense 2nd-line gegen Secret-Patterns
 

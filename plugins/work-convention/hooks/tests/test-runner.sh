@@ -107,6 +107,14 @@ emit_newstr_json() {
 emit_content_json() {
   printf '{"tool_input":{"content":"%s"}}' "$1"
 }
+emit_edit_json() {
+  jq -n --arg fp "$1" --arg old "$2" --arg new "$3" \
+    '{tool_name:"Edit", tool_input:{file_path:$fp, old_string:$old, new_string:$new}}'
+}
+emit_write_json() {
+  jq -n --arg fp "$1" --arg content "$2" \
+    '{tool_name:"Write", tool_input:{file_path:$fp, content:$content}}'
+}
 
 echo "═══ Hook-Tests ═══"
 
@@ -212,6 +220,46 @@ run_test_stdin "pre-edit-plugin: agents blocked" 2 \
 run_test_stdin "pre-edit-plugin: diag-hooks allowed" 0 \
   "$HOOK_DIR/pre-edit-plugin-files.sh" \
   "$(emit_filepath_json '/foo/.claude/hooks/diag-trace.sh')"
+
+# settings.json ist key-scoped: nur enabledPlugins/extraKnownMarketplaces
+# sind geschützt, generische Settings (advisorModel, theme, ...) sind frei.
+SETTINGS_FIXTURE_DIR="$(mktemp -d)/.claude"
+mkdir -p "$SETTINGS_FIXTURE_DIR"
+SETTINGS_FIXTURE="$SETTINGS_FIXTURE_DIR/settings.json"
+cat > "$SETTINGS_FIXTURE" <<'JSON'
+{
+  "theme": "dark",
+  "enabledPlugins": {"work-convention@kornmueller-empire": true},
+  "extraKnownMarketplaces": {"kornmueller-empire": {"source": {"source": "github", "repo": "x"}}}
+}
+JSON
+
+run_test_stdin "pre-edit-plugin: settings.json edit of generic key allowed" 0 \
+  "$HOOK_DIR/pre-edit-plugin-files.sh" \
+  "$(emit_edit_json "$SETTINGS_FIXTURE" '"theme": "dark"' '"theme": "dark",
+  "advisorModel": "opus"')"
+
+run_test_stdin "pre-edit-plugin: settings.json edit touching enabledPlugins blocked" 2 \
+  "$HOOK_DIR/pre-edit-plugin-files.sh" \
+  "$(emit_edit_json "$SETTINGS_FIXTURE" '"enabledPlugins": {"work-convention@kornmueller-empire": true}' '"enabledPlugins": {}')"
+
+run_test_stdin "pre-edit-plugin: settings.json write with unchanged wiring keys allowed" 0 \
+  "$HOOK_DIR/pre-edit-plugin-files.sh" \
+  "$(emit_write_json "$SETTINGS_FIXTURE" '{
+  "theme": "light",
+  "advisorModel": "opus",
+  "enabledPlugins": {"work-convention@kornmueller-empire": true},
+  "extraKnownMarketplaces": {"kornmueller-empire": {"source": {"source": "github", "repo": "x"}}}
+}')"
+
+run_test_stdin "pre-edit-plugin: settings.json write dropping enabledPlugins blocked" 2 \
+  "$HOOK_DIR/pre-edit-plugin-files.sh" \
+  "$(emit_write_json "$SETTINGS_FIXTURE" '{
+  "theme": "dark",
+  "extraKnownMarketplaces": {"kornmueller-empire": {"source": {"source": "github", "repo": "x"}}}
+}')"
+
+rm -rf "$(dirname "$SETTINGS_FIXTURE_DIR")"
 
 # ---------- pre-edit-secret-body (PreToolUse:Edit/Write, exit 2 = block) ----------
 run_test_stdin "pre-edit-secret: clean" 0 \
