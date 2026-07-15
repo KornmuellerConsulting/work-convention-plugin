@@ -163,35 +163,39 @@ Beim Start läuft `session-start-briefing.sh`. Du siehst:
 
 Beispiel-Prompt: `Status zeigen` → führt `/status` aus.
 
-## Advisor-Modell (optional, einmalig pro Person)
+## Advisor-Modell (automatisch, ab Plugin-Version 1.2.4)
 
 Claude Code kann bei unsicheren Entscheidungen automatisch ein zweites, stärkeres
-Modell konsultieren ("Advisor", ab Claude Code v2.1.170). Ist rein persönlich —
-das Plugin verteilt oder erzwingt hier nichts, jede*r stellt sich das selbst ein.
+Modell konsultieren ("Advisor", ab Claude Code v2.1.170). Der Hook
+`session-start-advisor-default.sh` trägt beim ersten Sessionstart nach
+Plugin-Install/-Update `advisorModel: "opus"` in die lokale `~/.claude/settings.json`
+ein, **falls dort noch keiner gesetzt ist**. Läuft auf jeder Maschine automatisch,
+sobald das Plugin dort installiert/geupdated wird — kein manueller Schritt pro
+Person/Gerät nötig. Eine bereits vorhandene, explizite Wahl (auch ein anderes
+Modell) wird nie überschrieben.
 
-**Wichtig: nur in einer echten Terminal-Session, nicht im Claude-Desktop-Chat-Fenster.**
-Im Desktop-Chat blockt der Command mit "opens an interactive panel and isn't
-available in this environment" — das ist eine Einschränkung der Desktop-Oberfläche,
-kein Bug. In einem echten Terminal (`claude` in Terminal.app/iTerm) funktioniert er normal.
+Gilt **pro Maschine**, nicht pro Account — auf jedem Rechner, auf dem `claude`
+läuft (Terminal oder Claude Desktop), muss das Plugin einmal laufen, damit der
+Hook feuert. Kein Cloud-Sync über Geräte hinweg, das gibt's in Claude Code nicht.
+
+Ändern/deaktivieren jederzeit selbst:
 
 ```bash
-# in einer Terminal-Session:
-/advisor opus     # oder: sonnet, fable
+# in einer echten Terminal-Session (nicht im Claude-Desktop-Chat-Fenster —
+# dort blockt /advisor mit "opens an interactive panel", weil es einen
+# Picker öffnet; ist eine Einschränkung der Desktop-Oberfläche, kein Bug):
+/advisor sonnet   # oder: opus, fable
 /advisor          # Picker mit allen erlaubten Kombinationen
 /advisor off      # deaktivieren
 ```
 
-Alternative ohne Terminal-Picker: direkt in `~/.claude/settings.json` eintragen:
+Oder direkt in `~/.claude/settings.json`. Seit dem Fix an
+`pre-edit-plugin-files.sh` (1.2.4) schützt der Hook dort nur noch
+`enabledPlugins`/`extraKnownMarketplaces` (echtes Plugin-Wiring), generische
+Settings wie `advisorModel` sind frei editierbar.
 
-```json
-{
-  "advisorModel": "opus"
-}
-```
-
-Ab Plugin-Version 1.2.4 lässt `pre-edit-plugin-files.sh` das zu — der Hook schützt
-in `settings.json` nur noch `enabledPlugins`/`extraKnownMarketplaces` (echtes
-Plugin-Wiring), nicht mehr generische Settings wie `advisorModel`.
+Anderen Default als `opus`? `WORK_CONVENTION_ADVISOR_DEFAULT` in `.env` setzen,
+bevor der Hook zum ersten Mal läuft.
 
 Erlaubte Advisor-Modelle hängen vom Hauptmodell ab (Sonnet-5-Main akzeptiert
 `sonnet`, `opus`, `fable` als Advisor; ein Sonnet-4.6-Advisor wird abgelehnt).

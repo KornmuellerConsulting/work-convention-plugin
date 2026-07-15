@@ -5,6 +5,7 @@
 ## SessionStart
 - `session-start-identity-pin.sh` — Pinnt Operator/Branch/HEAD in `.claude/state/session-identity.json`
 - `session-start-briefing.sh` — Lädt CLAUDE.md, STATUS.md, BLOCKERS.md, Reviewer-Findings ins Context
+- `session-start-advisor-default.sh` — Setzt `advisorModel` einmalig in `~/.claude/settings.json`, falls nicht schon gesetzt (überschreibt nie eine bestehende Wahl)
 
 ## UserPromptSubmit
 - `userprompt-context-refresh.sh` — Zeigt Hard-Trigger-Hint und Reviewer-Findings

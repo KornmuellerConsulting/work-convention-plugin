@@ -14,6 +14,7 @@ Versionierung folgt [Semver](https://semver.org/lang/de/).
 
 ### Added
 - 4 neue Hook-Tests (`pre-edit-plugin: settings.json ...`) für Edit- und Write-Pfad, je ein Fall der geschützte Keys berührt (blockt) und einer der nur generische Keys ändert (erlaubt). Test-Suite jetzt 26/26 grün.
+- **`hooks/session-start-advisor-default.sh`** (neu, SessionStart) — trägt `advisorModel: "opus"` automatisch in `~/.claude/settings.json` ein, falls dort noch keiner gesetzt ist. Macht den Advisor account-weit zum Default auf jeder Maschine, sobald das Plugin dort installiert/geupdated wird, ohne dass jede Person das manuell einträgt. Überschreibt nie eine bereits vorhandene, explizite Wahl. Default per `WORK_CONVENTION_ADVISOR_DEFAULT` in `.env` überschreibbar. Gilt pro Maschine — kein Cloud-Sync über Geräte hinweg.
 
 ## [1.2.3] — 2026-05-24
 
