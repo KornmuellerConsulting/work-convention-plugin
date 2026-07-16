@@ -5,6 +5,17 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.2.4] — 2026-07-15
+
+> Fix: `pre-edit-plugin-files.sh` blockte die komplette `settings.json`, obwohl nur `enabledPlugins`/`extraKnownMarketplaces` echtes Plugin-Wiring sind.
+
+### Fixed
+- **`hooks/pre-edit-plugin-files.sh`** blockte bisher jeden Edit/Write an `.claude/settings.json` pauschal, auch für generische, plugin-unabhängige Settings wie `advisorModel` oder `theme`. Der Hook prüft jetzt bei `settings.json` gezielt, ob der Edit/Write tatsächlich `enabledPlugins` oder `extraKnownMarketplaces` verändert (Plugin-Wiring), statt die ganze Datei zu sperren. Andere Plugin-Pfade (`hooks/`, `agents/`, `skills/`, `commands/`, `scripts/`) bleiben file-scoped geblockt wie zuvor.
+
+### Added
+- 4 neue Hook-Tests (`pre-edit-plugin: settings.json ...`) für Edit- und Write-Pfad, je ein Fall der geschützte Keys berührt (blockt) und einer der nur generische Keys ändert (erlaubt). Test-Suite jetzt 26/26 grün.
+- **`hooks/session-start-advisor-default.sh`** (neu, SessionStart) — trägt `advisorModel: "opus"` automatisch in `~/.claude/settings.json` ein, falls dort noch keiner gesetzt ist. Macht den Advisor account-weit zum Default auf jeder Maschine, sobald das Plugin dort installiert/geupdated wird, ohne dass jede Person das manuell einträgt. Überschreibt nie eine bereits vorhandene, explizite Wahl. Default per `WORK_CONVENTION_ADVISOR_DEFAULT` in `.env` überschreibbar. Gilt pro Maschine — kein Cloud-Sync über Geräte hinweg.
+
 ## [1.2.3] — 2026-05-24
 
 > Patch-Release: Stop-Hook robust gegen `.env`-Quoting-Fehler.

@@ -163,6 +163,44 @@ Beim Start läuft `session-start-briefing.sh`. Du siehst:
 
 Beispiel-Prompt: `Status zeigen` → führt `/status` aus.
 
+## Advisor-Modell (automatisch, ab Plugin-Version 1.2.4)
+
+Claude Code kann bei unsicheren Entscheidungen automatisch ein zweites, stärkeres
+Modell konsultieren ("Advisor", ab Claude Code v2.1.170). Der Hook
+`session-start-advisor-default.sh` trägt beim ersten Sessionstart nach
+Plugin-Install/-Update `advisorModel: "opus"` in die lokale `~/.claude/settings.json`
+ein, **falls dort noch keiner gesetzt ist**. Läuft auf jeder Maschine automatisch,
+sobald das Plugin dort installiert/geupdated wird — kein manueller Schritt pro
+Person/Gerät nötig. Eine bereits vorhandene, explizite Wahl (auch ein anderes
+Modell) wird nie überschrieben.
+
+Gilt **pro Maschine**, nicht pro Account — auf jedem Rechner, auf dem `claude`
+läuft (Terminal oder Claude Desktop), muss das Plugin einmal laufen, damit der
+Hook feuert. Kein Cloud-Sync über Geräte hinweg, das gibt's in Claude Code nicht.
+
+Ändern/deaktivieren jederzeit selbst:
+
+```bash
+# in einer echten Terminal-Session (nicht im Claude-Desktop-Chat-Fenster —
+# dort blockt /advisor mit "opens an interactive panel", weil es einen
+# Picker öffnet; ist eine Einschränkung der Desktop-Oberfläche, kein Bug):
+/advisor sonnet   # oder: opus, fable
+/advisor          # Picker mit allen erlaubten Kombinationen
+/advisor off      # deaktivieren
+```
+
+Oder direkt in `~/.claude/settings.json`. Seit dem Fix an
+`pre-edit-plugin-files.sh` (1.2.4) schützt der Hook dort nur noch
+`enabledPlugins`/`extraKnownMarketplaces` (echtes Plugin-Wiring), generische
+Settings wie `advisorModel` sind frei editierbar.
+
+Anderen Default als `opus`? `WORK_CONVENTION_ADVISOR_DEFAULT` in `.env` setzen,
+bevor der Hook zum ersten Mal läuft.
+
+Erlaubte Advisor-Modelle hängen vom Hauptmodell ab (Sonnet-5-Main akzeptiert
+`sonnet`, `opus`, `fable` als Advisor; ein Sonnet-4.6-Advisor wird abgelehnt).
+Details: [offizielle Advisor-Doku](https://code.claude.com/docs/en/advisor).
+
 ## Häufige Fehler beim ersten Setup
 
 | Fehler | Lösung |

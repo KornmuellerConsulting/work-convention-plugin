@@ -5,6 +5,7 @@
 ## SessionStart
 - `session-start-identity-pin.sh` — Pinnt Operator/Branch/HEAD in `.claude/state/session-identity.json`
 - `session-start-briefing.sh` — Lädt CLAUDE.md, STATUS.md, BLOCKERS.md, Reviewer-Findings ins Context
+- `session-start-advisor-default.sh` — Setzt `advisorModel` einmalig in `~/.claude/settings.json`, falls nicht schon gesetzt (überschreibt nie eine bestehende Wahl)
 
 ## UserPromptSubmit
 - `userprompt-context-refresh.sh` — Zeigt Hard-Trigger-Hint und Reviewer-Findings
@@ -20,7 +21,7 @@
 - `pre-bash-test-pre-push.sh` — Triggert pre-push-tests bei git push
 
 ## PreToolUse:Edit/Write
-- `pre-edit-plugin-files.sh` — Blockt direkte Edits in `.claude/{hooks,agents,...}`
+- `pre-edit-plugin-files.sh` — Blockt direkte Edits in `.claude/{hooks,agents,...}`; bei `settings.json` nur die Plugin-Wiring-Keys `enabledPlugins`/`extraKnownMarketplaces` (generische Settings wie `advisorModel`, `theme` sind frei)
 - `pre-edit-monorepo-boundary.sh` — Blockt Cross-App-Edits
 - `pre-edit-secret-body.sh` — Defense 2nd-line gegen Secret-Patterns
 
