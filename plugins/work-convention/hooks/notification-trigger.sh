@@ -11,7 +11,7 @@ SUBAGENT_OUT="$STATE_DIR/last-subagent.json"
 [ ! -f "$SUBAGENT_OUT" ] && exit 0
 
 # Optional best-effort routing — wird vom subagent selbst geschrieben
-NOTIFY="${CLAUDE_PLUGIN_ROOT}/scripts/notify.sh"
+NOTIFY="${CLAUDE_PLUGIN_ROOT:-}/scripts/notify.sh"
 if [ -x "$NOTIFY" ]; then
   SEVERITY=$(jq -r '.severity // "info"' "$SUBAGENT_OUT" 2>/dev/null || echo info)
   SUBJECT=$(jq -r '.subject // "Subagent-Update"' "$SUBAGENT_OUT" 2>/dev/null)

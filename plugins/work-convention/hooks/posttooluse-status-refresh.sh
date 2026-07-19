@@ -16,7 +16,7 @@ DIFF=$((NOW - LAST))
 [ "$DIFF" -lt 60 ] && exit 0
 echo "$NOW" > "$THROTTLE"
 
-GENERATOR="${CLAUDE_PLUGIN_ROOT}/scripts/status-generate.py"
+GENERATOR="${CLAUDE_PLUGIN_ROOT:-}/scripts/status-generate.py"
 if [ -f "$GENERATOR" ]; then
   python3 "$GENERATOR" --mode markdown > "${CLAUDE_PROJECT_DIR:-$(pwd)}/STATUS.md" 2>/dev/null || true
 fi

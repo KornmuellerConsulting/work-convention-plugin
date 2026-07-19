@@ -11,7 +11,7 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
 if echo "$CMD" | grep -qE '^[[:space:]]*git[[:space:]]+push' && ! echo "$CMD" | grep -q '\-\-no-verify'; then
-  PRE_PUSH_HOOK="${CLAUDE_PLUGIN_ROOT}/hooks/pre-push-tests.sh"
+  PRE_PUSH_HOOK="${CLAUDE_PLUGIN_ROOT:-}/hooks/pre-push-tests.sh"
   if [ -x "$PRE_PUSH_HOOK" ]; then
     bash "$PRE_PUSH_HOOK" || {
       cat <<MSG >&2
