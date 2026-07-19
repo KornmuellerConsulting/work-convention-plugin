@@ -179,3 +179,32 @@ nur der eine Hook.
 >
 > Und `cd` in ein Wegwerf-Verzeichnis, nicht in eine App — sonst schreiben die
 > Hooks in deren `.claude/state/`.
+
+> **Schlimmer noch: das Rezept kann eine Einmal-Migration verbrennen.**
+>
+> Genau das ist bei der v1.3.0-Verifikation passiert. Ablauf:
+>
+> 1. Das Rezept lädt die **neue** Version per `--plugin-dir`. Deren
+>    `session-start-advisor-cleanup.sh` läuft, entfernt `advisorModel` und setzt
+>    seinen Marker.
+> 2. Installiert ist aber noch die **alte** Version. Deren Setter schreibt
+>    `advisorModel` beim nächsten Session-Start ungefragt wieder rein.
+> 3. Nach dem echten `claude plugin update` sieht die Migration ihren Marker,
+>    überspringt sich — und die Altlast bleibt für immer liegen.
+>
+> Die Migration hat also stattgefunden, ohne etwas zu bewirken. Und weil sie sich
+> selbst als erledigt markiert hat, holt sie es nie nach. Symptom: nach dem
+> Update ist alles „grün", aber der Wert steht noch da.
+>
+> **Gegenmittel:** vor dem echten Update den Marker löschen, den der Testlauf
+> gesetzt hat.
+>
+> ```bash
+> rm -f ~/.claude/.work-convention-advisor-cleanup.done
+> ```
+>
+> **Als Regel:** Wer per `--plugin-dir` eine Version testet, die Einmal-
+> Migrationen mitbringt, muss deren Marker danach aufräumen. Sonst laufen sie
+> im Testlauf leer und nie wieder. Beim Bauen künftiger Migrationen mitdenken —
+> das Marker-Pattern ist richtig, aber es verträgt sich schlecht mit einem
+> Vorab-Test gegen eine ältere Installation.
