@@ -49,27 +49,48 @@ im Frontmatter sagt das explizit, damit der Hauptthread nicht reflexhaft delegie
 ## Advisor
 
 Der Advisor ist eine zweite Meinung *innerhalb* eines Requests — kein Subagent.
-`session-start-advisor-default.sh` trägt ihn auf jeder Maschine als Default ein,
-falls in `~/.claude/settings.json` noch keiner steht.
 
-Bei **Opus als Hauptmodell** ist der Advisor auf `opus` redundant: Opus berät Opus.
-Zwei Wege ihn loszuwerden:
+Bei **Opus als Hauptmodell** ist ein Advisor auf `opus` redundant: Opus berät Opus.
+Das kostet Tokens ohne Erkenntnisgewinn.
 
-```bash
-# In der .env der App — verhindert, dass der Hook überhaupt was schreibt.
-# Wirkt nur, solange in settings.json noch KEIN advisorModel steht.
-WORK_CONVENTION_ADVISOR_DEFAULT="off"
-```
+### Was v1.2.4 angerichtet hat
+
+`session-start-advisor-default.sh` schrieb ungefragt `advisorModel: "opus"` in die
+globale `~/.claude/settings.json` — auf jeder Maschine, auf der das Plugin
+installiert war, ohne dass jemand danach gefragt hatte.
+
+v1.3.0 dreht das um und räumt auf:
+
+| | v1.2.4 | v1.3.0 |
+|---|---|---|
+| Variable fehlt | schreibt `opus` | schreibt nichts |
+| `WORK_CONVENTION_ADVISOR_DEFAULT=sonnet` | schreibt `sonnet` | schreibt `sonnet` |
+| Altlast in settings.json | bleibt liegen | wird einmalig entfernt |
+
+### Die Migration
+
+`session-start-advisor-cleanup.sh` entfernt `advisorModel` beim nächsten
+Session-Start aus der globalen settings.json — mit Backup unter
+`settings.json.pre-advisor-cleanup.bak` und einer sichtbaren Meldung.
+
+Sie läuft **genau einmal pro Maschine**, gesichert über
+`~/.claude/.work-convention-advisor-cleanup.done`. Das ist keine Vorsicht, sondern
+Notwendigkeit: ohne Marker würde jeder Session-Start erneut löschen und damit ein
+späteres, bewusstes `/advisor sonnet` jedes Mal wieder killen. Die Migration ist
+ein Undo, keine Dauer-Durchsetzung.
+
+Advisor danach wieder anschalten: `/advisor`. Die Migration kommt nicht zurück.
+
+### Hart abschalten
 
 ```jsonc
-// ~/.claude/settings.json — hart, order-unabhängig.
-// Gewinnt gegen jedes gesetzte advisorModel.
+// ~/.claude/settings.json — gewinnt gegen jedes gesetzte advisorModel
 { "env": { "CLAUDE_CODE_DISABLE_ADVISOR_TOOL": "1" } }
 ```
 
-Der zweite Weg ist der verlässliche. Steht `advisorModel` erst mal in der
-settings.json, ändert die `.env`-Variable nichts mehr — der Hook fasst eine
-bestehende Wahl grundsätzlich nicht an.
+Nur nötig, wenn der Advisor auch nicht *versehentlich* wieder angehen soll.
+**Nebenwirkung:** damit wird auch der `/advisor`-Command unverfügbar — du kannst
+ihn dann nicht mehr eben zurückholen. Für den Normalfall reicht die Migration.
 
 ## Ändern
 

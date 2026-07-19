@@ -17,7 +17,7 @@ Public Plugin-Repo + private Apps-Repo. Beide bei `KornmuellerConsulting` auf Gi
 plugins/work-convention/
   .claude-plugin/plugin.json       Plugin-Manifest
   hooks/hooks.json                 Hook-Wiring (Claude-Code-Events)
-  hooks/*.sh                       25 Hook-Scripts
+  hooks/*.sh                       27 Hook-Scripts
   agents/*.md                      7 Subagents (builder/solver/reviewer/researcher/debugger/deployer/scout)
   commands/*.md                    9 Slash-Commands
   skills/audit-plugins/SKILL.md    Plugin-Audit-Skill
