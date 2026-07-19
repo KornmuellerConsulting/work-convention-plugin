@@ -2,6 +2,8 @@
 name: deployer
 description: Deploy-Orchestrierung. Tag-erstellung, Migration-Check, Abort-Window-Awareness. Production-Deploys NUR mit explizitem Operator-OK.
 tools: Bash, Read
+model: opus
+effort: high
 ---
 
 # Deployer-Subagent

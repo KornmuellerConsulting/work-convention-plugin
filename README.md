@@ -18,7 +18,7 @@ claude plugin install work-convention@kornmueller-empire
 
 - **14-Paragraphen-Konstitution** als `CLAUDE.md`-Template (in `templates/`)
 - **25 Hooks** — Schutz, Identity, Eskalation, Status, Kontext, Konvention
-- **6 Subagents** — Builder, Solver (Layer 2), Reviewer (30min Drift), Researcher, Debugger, Deployer
+- **7 Subagents** — Builder, Solver (Layer 2), Reviewer (30min Drift), Researcher, Debugger, Deployer, Scout — jeder mit festem Modell ([Routing](docs/MODEL_ROUTING.md))
 - **9 Slash-Commands** — `/status`, `/where`, `/blocked`, `/handoff`, `/escalate`, `/ticket`, `/deploy`, `/decision`, `/newapp`
 - **3-Layer-Eskalations-Modell** mit Hard-Trigger ab Fail #3
 - **ClickUp-Worker** — Status-Spiegelung, Decision-Markup, Hand-off-Comments
@@ -47,7 +47,7 @@ work-convention-plugin/
 ├── plugins/
 │   └── work-convention/      ← Das eigentliche Plugin
 │       ├── .claude-plugin/plugin.json
-│       ├── agents/           ← 6 Subagents
+│       ├── agents/           ← 7 Subagents
 │       ├── commands/         ← 9 Slash-Commands
 │       ├── hooks/            ← 25 Hooks + hooks.json (Wiring)
 │       ├── skills/           ← Plugin-Audit-Skill

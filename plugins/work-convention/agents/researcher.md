@@ -2,6 +2,8 @@
 name: researcher
 description: Recherche-Subagent für Library-Vergleiche, API-Doku, Best-Practices-Lookup. Liefert Entscheidungsgrundlage für Decision-Block.
 tools: Bash, Read, WebSearch, WebFetch
+model: sonnet
+effort: medium
 ---
 
 # Researcher-Subagent

@@ -274,6 +274,84 @@ run_test_stdin "pre-edit-secret: Write tool content" 2 \
   "$HOOK_DIR/pre-edit-secret-body.sh" \
   "$(emit_content_json "TOKEN=$GH_FAKE")"
 
+# ---------- session-start-advisor-default (SessionStart, side-effect auf settings.json) ----------
+# Der Hook schreibt in $HOME/.claude/settings.json — wird daher mit isoliertem
+# HOME in einer Subshell getestet. Erwartung ist der advisorModel-Wert nachher
+# ('-' = Key darf gar nicht existieren).
+assert_advisor() {
+  local name="$1" expected="$2" seed="$3"
+  shift 3   # Rest: VAR=wert-Paare für die Hook-Umgebung
+
+  if [ -n "$TARGET" ] && [[ "$name" != *"$TARGET"* ]]; then
+    return 0
+  fi
+
+  local fixture actual
+  fixture="$(mktemp -d)"
+  mkdir -p "$fixture/.claude"
+  echo "$seed" > "$fixture/.claude/settings.json"
+
+  # Isoliertes HOME + leeres PROJECT_DIR (kein .env), damit nur die explizit
+  # übergebenen Vars wirken.
+  env -u WORK_CONVENTION_ADVISOR_DEFAULT -u CLAUDE_CODE_DISABLE_ADVISOR_TOOL \
+    HOME="$fixture" CLAUDE_PROJECT_DIR="$fixture" "$@" \
+    bash "$HOOK_DIR/session-start-advisor-default.sh" >/dev/null 2>&1
+
+  actual="$(jq -r '.advisorModel // "-"' "$fixture/.claude/settings.json" 2>/dev/null)"
+  rm -rf "$fixture"
+
+  if [ "$actual" = "$expected" ]; then
+    echo "  ✅ $name"
+    PASS=$((PASS+1))
+  else
+    echo "  ❌ $name (expected advisorModel=$expected, got $actual)"
+    FAIL=$((FAIL+1))
+  fi
+}
+
+assert_advisor "advisor-default: nichts gesetzt → opus" \
+  "opus" '{"theme":"dark"}'
+
+assert_advisor "advisor-default: =off schreibt nicht" \
+  "-" '{"theme":"dark"}' WORK_CONVENTION_ADVISOR_DEFAULT=off
+
+assert_advisor "advisor-default: =OFF case-insensitive" \
+  "-" '{"theme":"dark"}' WORK_CONVENTION_ADVISOR_DEFAULT=OFF
+
+assert_advisor "advisor-default: leerer Wert schreibt nicht" \
+  "-" '{"theme":"dark"}' WORK_CONVENTION_ADVISOR_DEFAULT=
+
+assert_advisor "advisor-default: DISABLE_ADVISOR_TOOL=1 schreibt nicht" \
+  "-" '{"theme":"dark"}' CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1
+
+assert_advisor "advisor-default: DISABLE gewinnt gegen expliziten Wert" \
+  "-" '{"theme":"dark"}' CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1 WORK_CONVENTION_ADVISOR_DEFAULT=opus
+
+assert_advisor "advisor-default: =sonnet schreibt sonnet" \
+  "sonnet" '{"theme":"dark"}' WORK_CONVENTION_ADVISOR_DEFAULT=sonnet
+
+assert_advisor "advisor-default: bestehende Wahl wird nie überschrieben" \
+  "haiku" '{"advisorModel":"haiku"}' WORK_CONVENTION_ADVISOR_DEFAULT=opus
+
+# ---------- Agent-Frontmatter (Model-Routing v1.3.0) ----------
+# Jeder Agent MUSS ein explizites model: haben — ohne Pin erbt er das
+# Hauptmodell, und bei Opus-Main läuft dann z.B. der 30-Min-Reviewer auf Opus.
+AGENT_DIR="$(cd "$HOOK_DIR/../agents" && pwd)"
+for agent_file in "$AGENT_DIR"/*.md; do
+  agent_name="$(basename "$agent_file" .md)"
+  if [ -n "$TARGET" ] && [[ "agents: $agent_name" != *"$TARGET"* ]]; then
+    continue
+  fi
+  model_line="$(awk '/^---$/{n++; next} n==1 && /^model:/{print; exit}' "$agent_file")"
+  if [ -n "$model_line" ]; then
+    echo "  ✅ agents: $agent_name hat expliziten Model-Pin (${model_line#model: })"
+    PASS=$((PASS+1))
+  else
+    echo "  ❌ agents: $agent_name ohne model: — erbt Hauptmodell"
+    FAIL=$((FAIL+1))
+  fi
+done
+
 echo ""
 echo "Total: $((PASS+FAIL))"
 echo "Pass:  $PASS"

@@ -2,6 +2,8 @@
 name: debugger
 description: Bug-Diagnose. Reproduziert, isoliert, identifiziert Root-Cause. Schreibt KEINEN Fix — das macht Builder/Solver.
 tools: Bash, Read, Grep, Glob
+model: sonnet
+effort: high
 ---
 
 # Debugger-Subagent
