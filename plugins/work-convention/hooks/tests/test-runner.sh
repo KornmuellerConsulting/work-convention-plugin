@@ -309,8 +309,8 @@ assert_advisor() {
   fi
 }
 
-assert_advisor "advisor-default: nichts gesetzt → opus" \
-  "opus" '{"theme":"dark"}'
+assert_advisor "advisor-default: ohne Opt-in wird NICHT geschrieben (v1.3.0-Default)" \
+  "-" '{"theme":"dark"}'
 
 assert_advisor "advisor-default: =off schreibt nicht" \
   "-" '{"theme":"dark"}' WORK_CONVENTION_ADVISOR_DEFAULT=off
@@ -332,6 +332,68 @@ assert_advisor "advisor-default: =sonnet schreibt sonnet" \
 
 assert_advisor "advisor-default: bestehende Wahl wird nie überschrieben" \
   "haiku" '{"advisorModel":"haiku"}' WORK_CONVENTION_ADVISOR_DEFAULT=opus
+
+# ---------- session-start-advisor-cleanup (einmalige v1.2.4-Migration) ----------
+# Isoliertes HOME: der Hook liest settings.json UND schreibt sein Marker-File
+# beides unter $HOME/.claude/.
+CLEAN_HOOK="$HOOK_DIR/session-start-advisor-cleanup.sh"
+
+cleanup_fixture() {
+  local seed="$1" home
+  home="$(mktemp -d)"
+  mkdir -p "$home/.claude"
+  echo "$seed" > "$home/.claude/settings.json"
+  echo "$home"
+}
+assert_eq() {
+  local name="$1" expected="$2" actual="$3"
+  if [ -n "$TARGET" ] && [[ "$name" != *"$TARGET"* ]]; then return 0; fi
+  if [ "$actual" = "$expected" ]; then
+    echo "  ✅ $name"; PASS=$((PASS+1))
+  else
+    echo "  ❌ $name (expected '$expected', got '$actual')"; FAIL=$((FAIL+1))
+  fi
+}
+
+# 1. advisorModel=opus wird entfernt
+FX="$(cleanup_fixture '{"theme":"dark","advisorModel":"opus"}')"
+HOME="$FX" bash "$CLEAN_HOOK" >/dev/null 2>&1
+assert_eq "advisor-cleanup: entfernt advisorModel" \
+  "-" "$(jq -r '.advisorModel // "-"' "$FX/.claude/settings.json")"
+assert_eq "advisor-cleanup: andere Keys bleiben unberührt" \
+  "dark" "$(jq -r '.theme' "$FX/.claude/settings.json")"
+assert_eq "advisor-cleanup: Marker gesetzt" \
+  "yes" "$([ -f "$FX/.claude/.work-convention-advisor-cleanup.done" ] && echo yes || echo no)"
+assert_eq "advisor-cleanup: Backup angelegt" \
+  "opus" "$(jq -r '.advisorModel' "$FX/.claude/settings.json.pre-advisor-cleanup.bak" 2>/dev/null)"
+
+# 2. Zweiter Lauf fasst eine neue, bewusste Wahl NICHT mehr an — das ist der
+#    ganze Zweck des Markers. Ohne ihn wäre die Migration eine Zwangsjacke.
+jq '.advisorModel = "sonnet"' "$FX/.claude/settings.json" > "$FX/tmp" && mv "$FX/tmp" "$FX/.claude/settings.json"
+HOME="$FX" bash "$CLEAN_HOOK" >/dev/null 2>&1
+assert_eq "advisor-cleanup: zweiter Lauf lässt spätere Wahl stehen" \
+  "sonnet" "$(jq -r '.advisorModel // "-"' "$FX/.claude/settings.json")"
+rm -rf "$FX"
+
+# 3. Nichts zu tun, wenn kein advisorModel da ist
+FX="$(cleanup_fixture '{"theme":"dark"}')"
+HOME="$FX" bash "$CLEAN_HOOK" >/dev/null 2>&1
+assert_eq "advisor-cleanup: noop ohne advisorModel" \
+  "dark" "$(jq -r '.theme' "$FX/.claude/settings.json")"
+assert_eq "advisor-cleanup: Marker auch beim noop" \
+  "yes" "$([ -f "$FX/.claude/.work-convention-advisor-cleanup.done" ] && echo yes || echo no)"
+rm -rf "$FX"
+
+# 4. Cleanup + Setter zusammen: der Setter darf nicht sofort wieder schreiben
+#    (das war der Ordering-Bug beim Umbau).
+FX="$(cleanup_fixture '{"advisorModel":"opus"}')"
+env -u WORK_CONVENTION_ADVISOR_DEFAULT -u CLAUDE_CODE_DISABLE_ADVISOR_TOOL \
+  HOME="$FX" CLAUDE_PROJECT_DIR="$FX" bash "$CLEAN_HOOK" >/dev/null 2>&1
+env -u WORK_CONVENTION_ADVISOR_DEFAULT -u CLAUDE_CODE_DISABLE_ADVISOR_TOOL \
+  HOME="$FX" CLAUDE_PROJECT_DIR="$FX" bash "$HOOK_DIR/session-start-advisor-default.sh" >/dev/null 2>&1
+assert_eq "advisor-cleanup: Setter schreibt danach nicht zurück" \
+  "-" "$(jq -r '.advisorModel // "-"' "$FX/.claude/settings.json")"
+rm -rf "$FX"
 
 # ---------- Agent-Frontmatter (Model-Routing v1.3.0) ----------
 # Jeder Agent MUSS ein explizites model: haben — ohne Pin erbt er das

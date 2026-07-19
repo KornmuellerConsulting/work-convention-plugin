@@ -1,27 +1,26 @@
 #!/usr/bin/env bash
 # =============================================================================
 # session-start-advisor-default.sh — SessionStart
-# Trägt advisorModel einmalig in der globalen ~/.claude/settings.json ein,
-# falls dort noch keiner gesetzt ist. Läuft auf jeder Maschine, auf der das
-# Plugin installiert/geupdated wird — macht den Advisor account-weit zum
-# Default, ohne dass jede Person das per Hand einträgt.
 #
-# Rührt nichts an, falls advisorModel schon existiert (auch nicht "opus" ->
-# "sonnet" o.ä. überschreiben — explizite User-Wahl hat immer Vorrang).
+# OPT-IN seit v1.3.0. Trägt advisorModel in die globale ~/.claude/settings.json
+# ein — aber nur, wenn WORK_CONVENTION_ADVISOR_DEFAULT ausdrücklich auf ein
+# Modell gesetzt ist. Ohne diese Variable passiert nichts.
 #
-# v1.3.0 — OPT-OUT-GUARD:
-#   Der Hook schreibt NICHT, wenn eine der folgenden Bedingungen gilt:
-#     1. WORK_CONVENTION_ADVISOR_DEFAULT ist off|none|false|0|disabled|leer
-#     2. CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1 ist gesetzt
-#   In beiden Fällen wird schweigend gar nichts geschrieben — insbesondere
-#   KEIN ungültiger Wert wie "off" in die settings.json gekippt, denn
-#   advisorModel akzeptiert nur echte Model-Aliase (opus|sonnet|haiku|fable)
-#   bzw. volle Model-IDs.
+# Bis v1.2.4 war es umgekehrt: fehlte die Variable, schrieb der Hook ungefragt
+# "opus". Das hat auf jeder Maschine des Empire einen Advisor aktiviert, den
+# niemand bestellt hatte. session-start-advisor-cleanup.sh sammelt diese
+# Altlast einmalig wieder ein.
 #
-#   Wer den Advisor hart abschalten will, nutzt CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1
-#   (im env-Block der settings.json oder als Shell-Var). Diese Var gewinnt
-#   gegen ein bereits gesetztes advisorModel — sie ist also die einzige
-#   order-unabhängige Abschaltung. Alternativ: /advisor off.
+# Rührt nichts an, falls advisorModel schon existiert — explizite User-Wahl
+# hat immer Vorrang.
+#
+# Der Hook schweigt außerdem komplett, wenn CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1
+# gesetzt ist. Diese Var gewinnt gegen jedes advisorModel und ist damit die
+# einzige order-unabhängige Abschaltung (env-Block der settings.json oder
+# Shell-Var). Alternativ: /advisor off.
+#
+# Es wird nie ein Pseudo-Wert wie "off" geschrieben — advisorModel akzeptiert
+# nur echte Model-Aliase (opus|sonnet|haiku|fable) bzw. volle Model-IDs.
 # =============================================================================
 set -uo pipefail
 
@@ -45,18 +44,23 @@ if [ "${CLAUDE_CODE_DISABLE_ADVISOR_TOOL:-}" = "1" ]; then
   exit 0
 fi
 
-# --- Opt-out 2: expliziter Verzicht via .env ---------------------------------
-# Sinnvoll z.B. bei Opus-als-Hauptmodell: Opus-berät-Opus kostet Tokens ohne
-# nennenswerten Erkenntnisgewinn.
+# --- Opt-out 2: kein explizites Opt-in -> gar nichts tun ---------------------
+# v1.3.0 hat den Default UMGEDREHT. Bis v1.2.4 schrieb der Hook ungefragt
+# "opus", wenn die Variable fehlte — genau das hat auf jeder Maschine des
+# Empire einen Advisor aktiviert, den niemand bestellt hatte, und wird von
+# session-start-advisor-cleanup.sh wieder eingesammelt.
+#
+# Jetzt gilt: ohne ausdrücklichen Modellwert in WORK_CONVENTION_ADVISOR_DEFAULT
+# fasst der Hook die globale settings.json nicht an.
 RAW_DEFAULT="${WORK_CONVENTION_ADVISOR_DEFAULT-unset}"
 case "$(echo "$RAW_DEFAULT" | tr '[:upper:]' '[:lower:]')" in
-  off|none|false|0|disabled|no|"")
+  unset|off|none|false|0|disabled|no|"")
     exit 0
     ;;
 esac
 
 SETTINGS="$HOME/.claude/settings.json"
-DEFAULT_ADVISOR="${WORK_CONVENTION_ADVISOR_DEFAULT:-opus}"
+DEFAULT_ADVISOR="$WORK_CONVENTION_ADVISOR_DEFAULT"
 
 command -v jq >/dev/null 2>&1 || exit 0
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
