@@ -395,6 +395,47 @@ assert_eq "advisor-cleanup: Setter schreibt danach nicht zurück" \
   "-" "$(jq -r '.advisorModel // "-"' "$FX/.claude/settings.json")"
 rm -rf "$FX"
 
+# ---------- CLAUDE_PLUGIN_ROOT-Härtung ----------
+# Claude Code setzt die Variable im Normalbetrieb. Ist sie es mal nicht, darf
+# kein Hook unter `set -u` an der Zuweisung sterben — die [ -f ]/[ -x ]-Guards
+# direkt darunter sollen greifen können. Kritisch bei pre-bash-test-pre-push:
+# stirbt der mit exit 1, blockt er NICHT (nur exit 2 blockt) und der Push geht
+# ungetestet durch. Fail-open statt fail-closed.
+assert_no_plugin_root() {
+  local name="$1" hook="$2" json="$3" setup="$4"
+
+  if [ -n "$TARGET" ] && [[ "$name" != *"$TARGET"* ]]; then return 0; fi
+
+  local sb code
+  sb="$(mktemp -d)"
+  mkdir -p "$sb/.claude/state"
+  [ -n "$setup" ] && ( cd "$sb" && eval "$setup" )
+
+  echo "$json" | timeout 5 env -u CLAUDE_PLUGIN_ROOT \
+    HOME="$sb" CLAUDE_PROJECT_DIR="$sb" bash "$HOOK_DIR/$hook" >/dev/null 2>&1
+  code=$?
+  rm -rf "$sb"
+
+  if [ "$code" -eq 0 ]; then
+    echo "  ✅ $name"; PASS=$((PASS+1))
+  else
+    echo "  ❌ $name (exit $code — vermutlich unbound variable unter set -u)"
+    FAIL=$((FAIL+1))
+  fi
+}
+
+assert_no_plugin_root "plugin-root: status-refresh überlebt ohne CLAUDE_PLUGIN_ROOT" \
+  "posttooluse-status-refresh.sh" '{}' ""
+
+assert_no_plugin_root "plugin-root: pre-push-Guard überlebt (sonst fail-open!)" \
+  "pre-bash-test-pre-push.sh" '{"tool_input":{"command":"git push origin main"}}' ""
+
+assert_no_plugin_root "plugin-root: notification-trigger überlebt mit Subagent-Output" \
+  "notification-trigger.sh" '{}' 'echo "{\"severity\":\"info\"}" > .claude/state/last-subagent.json'
+
+assert_no_plugin_root "plugin-root: stop-handoff überlebt mit aktivem Ticket" \
+  "stop-handoff-comment.sh" '{}' 'echo "LAV-999" > .claude/state/active-ticket.txt'
+
 # ---------- Agent-Frontmatter (Model-Routing v1.3.0) ----------
 # Jeder Agent MUSS ein explizites model: haben — ohne Pin erbt er das
 # Hauptmodell, und bei Opus-Main läuft dann z.B. der 30-Min-Reviewer auf Opus.

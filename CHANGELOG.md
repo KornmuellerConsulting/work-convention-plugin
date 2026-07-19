@@ -18,6 +18,13 @@ Versionierung folgt [Semver](https://semver.org/lang/de/).
 
 - **`hooks/session-start-advisor-cleanup.sh`** (neu, SessionStart) — einmalige Migration, die die v1.2.4-Altlast wieder einsammelt: entfernt `advisorModel` aus `~/.claude/settings.json`, legt vorher ein Backup unter `settings.json.pre-advisor-cleanup.bak` an und meldet sichtbar, was passiert ist. Läuft **genau einmal pro Maschine**, gesichert über `~/.claude/.work-convention-advisor-cleanup.done`. Der Marker ist funktional notwendig, nicht bloß vorsichtig: ohne ihn würde jeder Session-Start erneut löschen und ein späteres, bewusstes `/advisor sonnet` jedes Mal wieder killen. Die Migration ist ein Undo, keine Dauer-Durchsetzung.
 
+### Fixed
+- **Vier Hooks starben unter `set -u`, wenn `CLAUDE_PLUGIN_ROOT` nicht gesetzt war** (PLUGIN-001). Betroffen: `posttooluse-status-refresh.sh`, `pre-bash-test-pre-push.sh`, `notification-trigger.sh`, `stop-handoff-comment.sh`. Alle vier wiesen die Variable ohne Default zu und sicherten erst *danach* mit `[ -f ]`/`[ -x ]` ab — der Guard kam nie zum Zug, weil die Zuweisung schon fatal war. Fix: `${CLAUDE_PLUGIN_ROOT:-}`, damit der vorhandene Guard greifen kann.
+
+  Der gefährlichste Fall war `pre-bash-test-pre-push.sh`: der Hook erzwingt Tests vor jedem `git push`. Stirbt er, gibt er exit 1 zurück — was in Claude Code **nicht** blockt (nur exit 2 tut das). Der Push wäre also ungetestet durchgegangen, fail-open statt fail-closed. Bei `stop-handoff-comment.sh` wäre es dieselbe Symptomatik wie LAV-559 gewesen: Hand-off-Comment wird still nicht gepostet.
+
+  Claude Code setzt die Variable im Normalbetrieb, akut gefeuert hat es also nicht — es war latent. Vier neue Tests decken jetzt genau diesen Fall ab.
+
 ### Changed
 - **`hooks/session-start-advisor-default.sh` ist jetzt OPT-IN statt Opt-out.** Bis v1.2.4 galt: fehlt `WORK_CONVENTION_ADVISOR_DEFAULT`, schreibe `"opus"` — womit das Plugin auf jeder Maschine des Empire ungefragt einen Advisor aktivierte, den niemand bestellt hatte. Jetzt fasst der Hook die globale settings.json nur noch an, wenn die Variable ausdrücklich auf ein Modell gesetzt ist. Zusätzlich: schweigt komplett bei `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`, schreibt nie einen Pseudo-Wert wie `"off"` (`advisorModel` akzeptiert nur echte Model-Aliase), und `bash -n`-Syntax-Guard vor dem `.env`-`source` (v1.2.3-Pattern, das hier noch fehlte).
 - Reihenfolge in `hooks.json`: Cleanup läuft vor dem Setter. Mit dem umgedrehten Default schreibt der Setter danach nichts zurück — ein Test deckt genau dieses Zusammenspiel ab.
