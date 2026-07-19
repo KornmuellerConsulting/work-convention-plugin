@@ -114,3 +114,68 @@ Nach dem Ändern: committen, taggen, pushen, dann in jeder App
 
 Die Test-Suite (`hooks/tests/test-runner.sh`) failt, sobald ein Agent **ohne**
 `model:` dazukommt — der Regress von v1.2.4 kann so nicht zurückkehren.
+
+## Verifizieren
+
+Die Test-Suite prüft nur, dass `model:` **dasteht**. Ob Claude Code den Pin auch
+*anwendet*, ist eine andere Frage — und `/agents` beantwortet sie nicht mehr, der
+Wizard wurde entfernt (bestätigt in Claude Code 2.1.210).
+
+Der Weg, der funktioniert: das Plugin per `--plugin-dir` aus dem lokalen Repo
+laden, mit `--agent` einen bestimmten Subagent als Session-Agent fahren, und im
+Debug-Log nachsehen, welches Modell die Requests tatsächlich benutzt haben. Das
+geht **vor** Merge und Tag, ohne irgendwas zu installieren.
+
+```bash
+PLUGIN=~/Documents/Kornmueller/work-convention-plugin/plugins/work-convention
+WORK=$(mktemp -d) && cd "$WORK"
+
+for pair in scout:haiku reviewer:haiku builder:sonnet \
+            researcher:sonnet debugger:sonnet solver:opus deployer:opus; do
+  a="${pair%%:*}"; want="${pair##*:}"
+  claude --plugin-dir "$PLUGIN" --agent "$a" --debug-file "/tmp/m-$a.log" \
+    -p "Antworte nur: OK" < /dev/null >/dev/null 2>&1
+  got=$(grep -oE 'model=claude-[a-z0-9.-]+' "/tmp/m-$a.log" | head -1 | sed 's/model=//')
+  printf "%-12s %-8s %s\n" "$a" "$want" "${got:-NICHT GEFUNDEN}"
+done
+```
+
+Referenz-Ausgabe (gemessen bei v1.3.0):
+
+```
+scout        haiku    claude-haiku-4-5-20251001
+reviewer     haiku    claude-haiku-4-5-20251001
+builder      sonnet   claude-sonnet-5
+researcher   sonnet   claude-sonnet-5
+solver       opus     claude-opus-4-8
+deployer     opus     claude-opus-4-8
+```
+
+Der Test ist bewusst **differenziell**: mehrere Agents mit unterschiedlichen Pins
+in einem Durchlauf. Landen alle auf demselben Modell, werden die Pins ignoriert —
+ein einzelner Agent allein beweist nichts, weil man den gemessenen Wert nicht vom
+Default unterscheiden kann.
+
+Im selben Log stehen zwei weitere Antworten:
+
+```bash
+grep -iE "registered.*hook|loaded .* agents" /tmp/m-scout.log
+# Registered 26 hooks from 1 plugins
+# Loaded 7 agents from plugin work-convention default directory
+```
+
+Das ist zugleich der Hook-Loader-Check aus der CLAUDE.md. Steht dort `0`, ist ein
+invalides Event in der `hooks.json` — dann ist das gesamte Hook-System tot, nicht
+nur der eine Hook.
+
+> **Achtung, echte Nebenwirkungen.** Das ist eine vollwertige Claude-Code-Session:
+> die SessionStart-Hooks des Plugins feuern gegen deine **echte** globale
+> `~/.claude/settings.json`. Genau so hat der Advisor-Cleanup bei der v1.3.0-
+> Verifikation seine einmalige Migration ausgelöst. Vorher sichern:
+>
+> ```bash
+> cp ~/.claude/settings.json /tmp/settings.PRE-TEST
+> ```
+>
+> Und `cd` in ein Wegwerf-Verzeichnis, nicht in eine App — sonst schreiben die
+> Hooks in deren `.claude/state/`.
