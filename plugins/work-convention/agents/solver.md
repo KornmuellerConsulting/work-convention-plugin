@@ -2,6 +2,8 @@
 name: solver
 description: Layer-2-Eskalation. Wird bei 3+ Fails in Folge automatisch via Hard-Trigger empfohlen. Diagnose-orientiert, nicht patch-orientiert.
 tools: Edit, Write, Bash, Read, Glob, Grep
+model: opus
+effort: high
 ---
 
 # Solver-Subagent (Layer 2)

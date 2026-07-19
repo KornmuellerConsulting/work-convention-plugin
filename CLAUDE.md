@@ -18,7 +18,7 @@ plugins/work-convention/
   .claude-plugin/plugin.json       Plugin-Manifest
   hooks/hooks.json                 Hook-Wiring (Claude-Code-Events)
   hooks/*.sh                       25 Hook-Scripts
-  agents/*.md                      6 Subagents (builder/solver/reviewer/researcher/debugger/deployer)
+  agents/*.md                      7 Subagents (builder/solver/reviewer/researcher/debugger/deployer/scout)
   commands/*.md                    9 Slash-Commands
   skills/audit-plugins/SKILL.md    Plugin-Audit-Skill
   scripts/*.sh,*.py                notify.sh, clickup-spiegel.py, healthcheck.sh, install-git-hooks.sh, etc.
@@ -68,7 +68,14 @@ TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 
 ## Aktuelle Version
 
-**v1.2.0** (2026-05-15) — Production-fit nach mehrtägiger Diagnose. Wichtige Fixes:
+**v1.3.0** (2026-07-19) — Model-Routing. Jeder Subagent hat jetzt ein explizites
+`model:` im Frontmatter. Ohne Pin galt `inherit`, womit bei Opus-als-Hauptmodell
+auch der 30-Minuten-Reviewer und der lese-lastige Researcher auf Opus liefen.
+Neu dazu: `scout` (haiku, read-only) für große mechanische Lese-Jobs, und ein
+Opt-out-Guard im Advisor-Hook. Routing-Tabelle mit Rationale:
+[docs/MODEL_ROUTING.md](./docs/MODEL_ROUTING.md).
+
+Davor v1.2.0 (2026-05-15) — Production-fit nach mehrtägiger Diagnose:
 - PreCommit/PrePush aus hooks.json raus → Plugin-Hooks feuern endlich
 - Alle PreToolUse/PostToolUse-Hooks auf stdin-JSON umgestellt
 - notify.sh-Pfade auf ${CLAUDE_PLUGIN_ROOT}

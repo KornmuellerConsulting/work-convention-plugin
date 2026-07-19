@@ -2,6 +2,8 @@
 name: reviewer
 description: Drift-Detection. Läuft alle 30 Min via Hint. Schaut ob Session vom Ticket abweicht, Decision-Blocks fehlen, Anti-Patterns auftauchen.
 tools: Read, Bash, Grep, Glob
+model: haiku
+effort: medium
 ---
 
 # Reviewer-Subagent

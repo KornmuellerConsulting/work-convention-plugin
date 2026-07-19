@@ -2,6 +2,8 @@
 name: builder
 description: Standard-Modus für Feature-Implementierung. Schreibt Code, Tests, Dokumentation für ein klar abgegrenztes Ticket.
 tools: Edit, Write, Bash, Read, Glob, Grep
+model: sonnet
+effort: high
 ---
 
 # Builder-Subagent

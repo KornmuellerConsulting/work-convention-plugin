@@ -5,6 +5,24 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [1.3.0] — 2026-07-19
+
+> Model-Routing: jeder Subagent bekommt ein explizites Modell. Ohne Pin erbte jeder Agent das Hauptmodell — bei Opus-Main lief damit auch der 30-Minuten-Reviewer auf Opus.
+
+### Added
+- **Model-Pins im Frontmatter aller Subagents.** Bis v1.2.4 hatte keiner der sechs Agents ein `model:`, womit `inherit` galt. Neu: `solver` und `deployer` auf `opus` (härtestes Denken bzw. Production-Blast-Radius), `builder` und `debugger` auf `sonnet` mit `effort: high`, `researcher` auf `sonnet`, `reviewer` auf `haiku`. Runtergestuft wird, was häufig läuft, viel liest und wenig kaputtmachen kann — nicht pauschal alles.
+- **`agents/scout.md`** (neu) — read-only Such- und Extraktions-Worker auf `haiku`, ohne Edit/Write. Für große mechanische Lese-Jobs ("finde alle Stellen die X nutzen"), die viel lesen und eine kurze Liste zurückgeben. Die `description` grenzt explizit ab, dass sich der Subagent-Overhead bei kleinen Greps *nicht* lohnt.
+- **`docs/MODEL_ROUTING.md`** — Routing-Tabelle mit Rationale pro Agent, das Prinzip dahinter, und beide Wege den Advisor abzuschalten.
+- **`WORK_CONVENTION_ADVISOR_DEFAULT` in `.env.example` dokumentiert.** Die Variable existierte seit v1.2.4, stand aber in keinem Template.
+- **15 neue Hook-Tests** (26 → 41): 8 für den Advisor-Guard (inklusive Precedence von `CLAUDE_CODE_DISABLE_ADVISOR_TOOL` und "bestehende Wahl wird nie überschrieben"), 7 die sicherstellen, dass **jeder** Agent einen Model-Pin hat. Der Regress von v1.2.4 kann damit nicht zurückkehren — ein neuer Agent ohne `model:` failt die Suite.
+
+### Changed
+- **`hooks/session-start-advisor-default.sh`** hat einen Opt-out-Guard. Der Hook schreibt nichts mehr, wenn `WORK_CONVENTION_ADVISOR_DEFAULT` auf `off`/`none`/`false`/`0`/`disabled`/leer steht (case-insensitive) oder `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1` gesetzt ist. Wichtig: Es wird in dem Fall **kein** Ersatzwert wie `"off"` in die settings.json geschrieben — `advisorModel` akzeptiert nur echte Model-Aliase. Zusätzlich `bash -n`-Syntax-Guard vor dem `.env`-`source` (v1.2.3-Pattern, das hier noch fehlte).
+
+### Notes
+- Der Guard hilft nur bei **frischen** Installs. Steht `advisorModel` bereits in `~/.claude/settings.json`, fasst der Hook es grundsätzlich nicht an — dann greift nur `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1` im `env`-Block der settings.json (gewinnt gegen jedes gesetzte `advisorModel`) oder `/advisor off`.
+- Das Routing verteilt sich strukturell: die Agents liegen im Plugin, nicht in den Apps. Ein `claude plugin update` und die Pins gelten in jeder App auf jeder Maschine — kein Template-Kopieren nötig.
+
 ## [1.2.4] — 2026-07-15
 
 > Fix: `pre-edit-plugin-files.sh` blockte die komplette `settings.json`, obwohl nur `enabledPlugins`/`extraKnownMarketplaces` echtes Plugin-Wiring sind.
