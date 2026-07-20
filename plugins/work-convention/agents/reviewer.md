@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Drift-Detection. Läuft alle 30 Min via Hint. Schaut ob Session vom Ticket abweicht, Decision-Blocks fehlen, Anti-Patterns auftauchen.
+description: Drift-Detection auf Abruf. Nutze bei langen Sessions oder vor dem Commit-Zeitpunkt, um zu prüfen ob die Session vom Ticket abweicht, Decision-Blocks fehlen oder Anti-Patterns auftauchen.
 tools: Read, Bash, Grep, Glob
 model: haiku
 effort: medium

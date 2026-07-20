@@ -34,6 +34,14 @@ git -C "$PROJECT_DIR" rev-parse --git-dir >/dev/null 2>&1 || exit 0
 # Plugin-Source-Checkout? Nicht anfassen (Entwicklung läuft gegen den Repo-Stand).
 [ -f "$PROJECT_DIR/plugins/work-convention/.claude-plugin/plugin.json" ] && exit 0
 
+# core.hooksPath gesetzt (husky & Co.)? Dann liest git NICHT aus
+# $GIT_COMMON_DIR/hooks — eine Installation dorthin wäre ein stiller No-op
+# mit Erfolgsmeldung. Solche Setups fassen wir nicht an.
+if [ -n "$(git -C "$PROJECT_DIR" config core.hooksPath 2>/dev/null)" ]; then
+  echo "⚠️  work-convention: core.hooksPath ist gesetzt (husky o.ä.) — git-Hooks nicht installiert. Ticket-ID/gitleaks/Pre-Push laufen hier nicht." >&2
+  exit 0
+fi
+
 # --git-common-dir statt --git-dir: in Linked Worktrees zeigt --git-dir auf
 # worktrees/<name>/, git liest Hooks aber nur aus dem Common Dir. Hooks dort
 # zu installieren wäre ein stiller No-op.
@@ -47,7 +55,14 @@ stale=0
 for h in commit-msg pre-commit pre-push; do
   if [ -f "$HOOKS_DIR/$h" ] && grep -q "$MARKER" "$HOOKS_DIR/$h" 2>/dev/null; then
     ours_installed=1
-    grep -q "$PLUGIN_ROOT" "$HOOKS_DIR/$h" 2>/dev/null || stale=1
+    # Frisch heißt: executable UND der aktuelle Pfad steht literal drin.
+    # -F + Anker (Quote davor, / bzw. Quote danach), sonst gilt ein Wrapper
+    # mit altem Pfad als frisch, sobald der neue Pfad ein Substring davon ist.
+    if [ ! -x "$HOOKS_DIR/$h" ]; then
+      stale=1
+    elif ! grep -qF -e "\"$PLUGIN_ROOT/" -e "\"$PLUGIN_ROOT\"" "$HOOKS_DIR/$h" 2>/dev/null; then
+      stale=1
+    fi
   else
     # Mindestens einer fehlt oder ist fremd -> bei Empire-App neu installieren
     stale=1

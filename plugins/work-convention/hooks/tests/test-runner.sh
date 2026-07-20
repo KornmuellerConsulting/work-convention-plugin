@@ -165,6 +165,38 @@ run_test_stdin "edit-guards: same-app edit ok" 0 \
   "$EDIT" "$(emit_filepath_json '/mono/apps/web/src/x.ts')" CLAUDE_PROJECT_DIR="$T4"
 rm -rf "$T4"
 
+# ---------- Verify-Pass-Regressionen (v2.0, Skeptiker-Repros als Tests) ----------
+# Teilinvalide .env (Syntaxfehler NACH den relevanten Keys) darf die Guards
+# weder fail-open (Boundary) noch fail-closed (Migrations-Lock) kippen.
+T7="$(mktemp -d)"; mkdir -p "$T7/.claude/state"
+printf 'APP_NAME="web"\nBAD=a(b\n' > "$T7/.env"
+run_test_stdin "regression: cross-app block trotz teilinvalider .env" 2 \
+  "$EDIT" "$(emit_filepath_json '/mono/apps/other-app/src/x.ts')" CLAUDE_PROJECT_DIR="$T7"
+rm -rf "$T7"
+
+T8="$(mktemp -d)"; mkdir -p "$T8/.claude/state"
+printf 'CURRENT_OPERATOR="justin"\nBAD=a(b\n' > "$T8/.env"
+echo "justin" > "$T8/.claude/state/migration.lock"
+run_test_stdin "regression: eigener migration-lock trotz teilinvalider .env" 0 \
+  "$GUARDS" "$(emit_cmd_json 'npx prisma migrate dev')" CLAUDE_PROJECT_DIR="$T8"
+rm -rf "$T8"
+
+# Write, der eine NEUE settings.json mit harmlosem Inhalt anlegt, darf nicht blocken.
+T9="$(mktemp -d)"; mkdir -p "$T9/.claude"
+run_test_stdin "regression: neuanlage settings.json ohne wiring-keys erlaubt" 0 \
+  "$EDIT" "$(emit_write_json "$T9/.claude/settings.json" '{"theme": "dark"}')"
+rm -rf "$T9"
+
+# Leeres/kaputtes stdin darf den Fail-Counter nicht hochzählen.
+T10="$(mktemp -d)"
+echo '' | env CLAUDE_PROJECT_DIR="$T10" bash "$STATE" >/dev/null 2>&1
+if ! skip "regression: leeres stdin zaehlt nicht als fail"; then
+  [ ! -f "$T10/.claude/state/escalation-counter.state" ] \
+    && report "regression: leeres stdin zaehlt nicht als fail" ok ok \
+    || report "regression: leeres stdin zaehlt nicht als fail" ok counted
+fi
+rm -rf "$T10"
+
 # ---------- pre-edit-guards: Secrets im Content ----------
 run_test_stdin "edit-guards: content clean" 0 "$EDIT" "$(emit_newstr_json 'const x = 1')"
 run_test_stdin "edit-guards: content anthropic key" 2 "$EDIT" "$(emit_newstr_json "key = $ANTHROPIC_FAKE")"
@@ -275,6 +307,32 @@ rm -rf "$R"
 R="$(mk_repo)"; printf 'APP_PROJECT_PREFIX="TEST"\n' > "$R/.env"
 run_test_args "ensure-hooks: ohne CLAUDE_PLUGIN_ROOT ueberlebt" 0 \
   env -u CLAUDE_PLUGIN_ROOT CLAUDE_PROJECT_DIR="$R" bash "$ENSURE"
+rm -rf "$R"
+
+# h) core.hooksPath gesetzt (husky-Style) -> nicht anfassen, warnen
+R="$(mk_repo)"; printf 'APP_PROJECT_PREFIX="TEST"\n' > "$R/.env"
+( cd "$R" && git config core.hooksPath .husky )
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$R" bash "$ENSURE" >/dev/null 2>&1
+assert_eq "ensure-hooks: core.hooksPath -> keine installation" "no" \
+  "$([ -f "$R/.git/hooks/commit-msg" ] && echo yes || echo no)"
+rm -rf "$R"
+
+# i) Marker + aktueller Pfad, aber Executable-Bit fehlt -> refresh stellt +x her
+R="$(mk_repo)"; printf 'APP_PROJECT_PREFIX="TEST"\n' > "$R/.env"
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$R" bash "$ENSURE" >/dev/null 2>&1
+chmod -x "$R/.git/hooks/pre-push"
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$R" bash "$ENSURE" >/dev/null 2>&1
+assert_eq "ensure-hooks: fehlendes exec-bit wird als stale erkannt" "yes" \
+  "$([ -x "$R/.git/hooks/pre-push" ] && echo yes || echo no)"
+rm -rf "$R"
+
+# j) Substring-Falle: Wrapper zeigt auf <aktueller-pfad>-old -> muss stale sein
+R="$(mk_repo)"; printf 'APP_PROJECT_PREFIX="TEST"\n' > "$R/.env"
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$R" bash "$ENSURE" >/dev/null 2>&1
+sed -i.bak "s|$PLUGIN_DIR|$PLUGIN_DIR-old|g" "$R/.git/hooks/commit-msg" && rm -f "$R/.git/hooks/commit-msg.bak"
+env CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$R" bash "$ENSURE" >/dev/null 2>&1
+assert_eq "ensure-hooks: substring-pfad gilt nicht als frisch" "yes" \
+  "$(grep -qF "\"$PLUGIN_DIR/" "$R/.git/hooks/commit-msg" && echo yes || echo no)"
 rm -rf "$R"
 
 # g) Linked Worktree -> Hooks landen im COMMON dir, nicht im worktrees/-Subdir

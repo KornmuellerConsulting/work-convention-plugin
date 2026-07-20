@@ -58,7 +58,7 @@ work-convention-plugin/
 
 ## Setup pro App
 
-- **Quickstart (~20 Min)**: [docs/QUICKSTART.md](./docs/QUICKSTART.md) — Golden Path mit Bootstrap-Skript
+- **Quickstart (wenige Minuten)**: [docs/QUICKSTART.md](./docs/QUICKSTART.md) — install, `.env`, Session starten; git-Hooks kommen von selbst
 - **Vollständige Setup-Anleitung**: [docs/SETUP.md](./docs/SETUP.md)
 
 ## Co-Founder
