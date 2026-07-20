@@ -48,3 +48,8 @@ build/
 
 # Plugin-spezifisch
 .plugin-installed-marker
+
+# Übergang: v1.x-Caches generieren STATUS.md noch bis zum Claude-Code-Neustart
+# nach dem v2-Update. Danach entsteht die Datei nie wieder — Zeile kann bei
+# der nächsten Aufräumrunde weg.
+/STATUS.md
