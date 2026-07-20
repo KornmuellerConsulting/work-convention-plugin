@@ -19,7 +19,8 @@ if ! git -C "$APP_DIR" rev-parse --git-dir &>/dev/null; then
   echo "❌ Nicht in einem Git-Repo. Wechsel in dein App-Verzeichnis." >&2
   exit 1
 fi
-GIT_DIR="$(git -C "$APP_DIR" rev-parse --git-dir)"
+# --git-common-dir: in Linked Worktrees liest git Hooks nur aus dem Common Dir.
+GIT_DIR="$(git -C "$APP_DIR" rev-parse --git-common-dir)"
 [[ "$GIT_DIR" = /* ]] || GIT_DIR="$APP_DIR/$GIT_DIR"
 
 echo "📍 Plugin-Root: $PLUGIN_ROOT"
