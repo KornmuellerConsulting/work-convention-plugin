@@ -1,7 +1,7 @@
 {
   "name": "work-convention",
-  "description": "Multi-App-Empire Konvention für Kornmueller Consulting. Hooks, Skills, Subagents, ClickUp-Worker, 3-Layer-Eskalation, autonome Production-Deploys.",
-  "version": "1.3.0",
+  "description": "Lean-Core Arbeitskonventionen für Kornmueller Consulting: model-gepinnte Subagents, selbstinstallierende git-Hooks, Secret/Prod-Guards, 3-Layer-Eskalation — bewusst ohne Idle-Kontext-Kosten.",
+  "version": "2.0.0",
   "author": {
     "name": "Kornmueller Consulting",
     "email": "patrick@kornmueller-consulting.de"
@@ -9,5 +9,11 @@
   "homepage": "https://github.com/KornmuellerConsulting/work-convention-plugin",
   "repository": "https://github.com/KornmuellerConsulting/work-convention-plugin",
   "license": "MIT",
-  "keywords": ["multi-app", "monorepo", "clickup", "slack", "escalation"]
+  "keywords": [
+    "subagents",
+    "model-routing",
+    "git-hooks",
+    "escalation",
+    "lean"
+  ]
 }

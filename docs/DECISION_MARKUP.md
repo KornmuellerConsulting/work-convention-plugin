@@ -22,12 +22,14 @@ Optionale Felder:
 - `ROLLBACK: <Plan>` — bei Production-Decisions
 - `REVIEWED-BY: <name>` — bei Layer-3 die Co-Founder-Bestätigung
 
-## Persistenz (Doppel-Backup, Audit-Fix #10)
+## Persistenz
 
-1. **DECISIONS.md** im App-Repo (Append-Only, git-versioniert)
-2. **ClickUp-Comment** im jeweiligen Task — `posttooluse-decision-markup.sh`
-   parsed neue Blocks, postet via `clickup-spiegel.py comment`
-3. **Idempotent** via SHA256-Signatur in `.claude/state/decision-signatures.log`
+**DECISIONS.md** im App-Repo (Append-Only, git-versioniert) — sonst nichts.
+v2.0 hat keinen Auto-Post-Hook mehr, der Blocks aus Edits parsed und
+irgendwo spiegelt. Claude schreibt den Block direkt und vollständig in
+`DECISIONS.md`, in derselben Aktion, die die Entscheidung trifft. Kein
+zweiter Persistenz-Pfad, keine Signatur-Datei, kein Throttle — der Block
+existiert erst, wenn er im Append-Only-Log steht.
 
 ## Wann Decision-Block schreiben
 

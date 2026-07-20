@@ -1,7 +1,7 @@
 {
   "name": "kornmueller-empire",
   "description": "Kornmueller Consulting Plugin-Marketplace für das Multi-App-Empire.",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "owner": {
     "name": "Kornmueller Consulting",
     "email": "patrick@kornmueller-consulting.de"
@@ -13,15 +13,21 @@
     {
       "name": "work-convention",
       "source": "./plugins/work-convention",
-      "description": "Hooks, Subagents, ClickUp/Slack-Integration, 3-Layer-Eskalation für Empire-Apps.",
-      "version": "1.3.0",
+      "description": "Model-gepinnte Subagents, selbstinstallierende git-Hooks, Secret/Prod-Guards, 3-Layer-Eskalation für Empire-Apps.",
+      "version": "2.0.0",
       "author": {
         "name": "Patrick Kornmüller + Justin Görmez"
       },
       "homepage": "https://github.com/KornmuellerConsulting/work-convention-plugin",
       "repository": "https://github.com/KornmuellerConsulting/work-convention-plugin",
       "license": "MIT",
-      "keywords": ["multi-app", "monorepo", "clickup", "slack", "escalation", "qa", "kornmueller"],
+      "keywords": [
+        "subagents",
+        "model-routing",
+        "git-hooks",
+        "escalation",
+        "lean"
+      ],
       "category": "workflow"
     }
   ]

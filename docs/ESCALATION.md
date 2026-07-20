@@ -7,27 +7,31 @@ innerhalb bestehender Konventionen, Tests, Stage-Deploys.
 
 **Decision-Block** für nicht-triviale Entscheidungen (siehe DECISION_MARKUP.md).
 
-**Counter:** wird via `escalation-counter.sh` (PostToolUse) gepflegt.
-Bei Erfolgreichem Tool-Use: Auto-Reset (Audit-Fix #16).
+**Counter:** wird via `post-tool-state.sh` (PostToolUse) gepflegt. Bei
+erfolgreichem Tool-Use: Auto-Reset.
 
 ## Layer 2 — Solver-Subagent
 
-**Trigger:** 3 aufeinanderfolgende Fails (Audit-Fix #1).
+**Trigger:** 3 aufeinanderfolgende Fails.
 
-`escalation-counter.sh` schreibt `.claude/state/escalation-3fail.flag`.
+`post-tool-state.sh` schreibt `.claude/state/escalation-3fail.flag`.
 
 `userprompt-context-refresh.sh` zeigt Hint im nächsten Prompt:
 ```
 🚨 [Reminder] Hard-Trigger aktiv — Solver-Subagent erforderlich.
 ```
 
-**Aktivierung:** im Prompt sagen: `Aktiviere Solver-Subagent für [Problem]`.
+**Aktivierung:** im Prompt sagen: `Aktiviere Solver-Subagent für [Problem]`,
+oder `/escalate 2 [Problem]`.
 
 Das setzt `.claude/state/solver-activated.flag`. Solver-Modus läuft Diagnose
-statt Patch (siehe `claude/agents/solver.md`).
+statt Patch (siehe `plugins/work-convention/agents/solver.md`).
 
-**Hard-Block** ab Fail #4 ohne Solver-Aktivierung — `pre-bash-escalation-block.sh`
+**Hard-Block** ab Fail #4 ohne Solver-Aktivierung — `pre-bash-guards.sh`
 verweigert weitere Bash-Tool-Uses bis Solver aktiviert oder `/escalate reset`.
+Der Block gibt `exit 2` zurück und blockt damit wirklich (bis v1.3 gab der
+damalige Einzel-Hook fälschlich `exit 1` zurück und hat nur gewarnt, ohne
+tatsächlich zu blocken — siehe [HOOKS.md](./HOOKS.md)).
 
 ## Layer 3 — Co-Founder
 
@@ -35,14 +39,14 @@ verweigert weitere Bash-Tool-Uses bis Solver aktiviert oder `/escalate reset`.
 Hypothesen, oder Production-Outage.
 
 **Aktivierung:**
-```bash
-bash .claude/scripts/notify.sh blocker "Layer-3: <Titel>" "<Beschreibung>"
+```
+/escalate 3 "<Titel/Beschreibung>"
 ```
 
-`notify.sh` sendet:
-- Slack #empire-blockers mit @Patrick + @Justin (broadcast_both)
-- Pushover P1 an beide
-- WhatsApp an beide (best-effort)
+Ruft im Hintergrund `notify.sh blocker` auf (siehe [NOTIFICATION.md](./NOTIFICATION.md)).
+Ohne konfigurierte Layer-3-Notify-Keys in `.env` meldet sich das nur lokal im
+Chat — die Eskalation selbst funktioniert trotzdem, nur der externe Ping
+entfällt.
 
 **Decision-Block** in DECISIONS.md mit `LAYER: 3`.
 
@@ -56,5 +60,6 @@ Löscht counter, flags, solver-activated.
 
 ## Reviewer-Subagent
 
-Läuft alle 30 Min via UserPromptSubmit-Hint (Audit-Fix #2). Detektiert Drift,
-fixt nicht. Schreibt `.claude/state/reviewer-finding.md`.
+Kein automatischer 30-Min-Trigger mehr in v2.0. Manuell anfordern, wenn eine
+zweite Meinung zu Drift/Konventionstreue gebraucht wird (siehe
+`plugins/work-convention/agents/reviewer.md`).

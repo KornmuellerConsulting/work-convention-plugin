@@ -1,214 +1,100 @@
 # SETUP — Plugin in einer App installieren
 
-Dauer: 60-90 Min für die erste App, ~20 Min für jede weitere.
+Dauer: wenige Minuten. v2.0 hat keine Pflicht-Pre-Setups mehr (kein ClickUp,
+kein Slack, kein Bootstrap-Skript) — Setup ist Plugin installieren, `.env`
+mit drei Identity-Keys anlegen, Session starten.
 
-## Vorbereitung
-
-Bevor du eine App bootstrappst, brauchst du **einmalig** folgende Setups:
-
-### 1. ClickUp (einmalig pro Workspace)
-
-- ClickUp-Account mit eigenem Workspace
-- API-Token: ClickUp → Settings → Apps → API Token → Generate
-- `CLICKUP_API_TOKEN` in `.env`
-- `CLICKUP_TEAM_ID` (Workspace-ID, in URL sichtbar): in `.env`
-
-### 2. Slack (einmalig)
-
-Slack-App erstellen: https://api.slack.com/apps → Create New App → From scratch
-
-OAuth-Scopes (Bot-Token):
-- `chat:write`
-- `chat:write.public`
-- `channels:read`
-- `channels:join`
-- `conversations.history`
-
-Bot installieren in Workspace, Bot-Token kopieren → `SLACK_BOT_TOKEN`.
-
-User-IDs für Mentions:
-- In Slack → Profil → "..." → Member-ID kopieren
-- Patrick → `SLACK_USER_PATRICK`
-- Justin → `SLACK_USER_JUSTIN`
-
-Channels einmalig erstellen:
-- `#empire-status`
-- `#empire-blockers`
-- (pro App: `#<app>-build` wird vom Bootstrap erstellt)
-
-### 3. Pushover (einmalig pro Person)
-
-Each: https://pushover.net → $5 einmalig pro Device.
-
-App registrieren → App-Token kopieren → `PUSHOVER_APP_TOKEN` (gleich für beide).
-
-User-Keys:
-- Patrick: nach Login auf Dashboard sichtbar → `PUSHOVER_USER_PATRICK`
-- Justin: dasselbe → `PUSHOVER_USER_JUSTIN`
-
-### 4. WhatsApp via CallMeBot (einmalig pro Person)
-
-Best-effort, keine SLA. Each:
-
-1. Speichere `+34 644 51 95 23` als Kontakt
-2. Sende `I allow callmebot to send me messages` an die Nummer
-3. Warte auf Antwort mit API-Key
-4. In `.env`:
-   - Patrick: `CALLMEBOT_PHONE_PATRICK="+49..."`, `CALLMEBOT_APIKEY_PATRICK="..."`
-   - Justin: dasselbe
-
-Details + Limits: [docs/NOTIFICATION.md](./NOTIFICATION.md)
-
-### 5. GitHub PAT (einmalig)
-
-Settings → Developer Settings → Personal Access Tokens → Fine-grained:
-
-Scopes: `repo`, `workflow`, `write:packages`.
-
-Token in `.env`: `GITHUB_PAT`.
-
-### 6. Vercel (einmalig)
-
-Vercel-Account, mit GitHub verbunden. Token erstellen via Account → Tokens.
-
-`VERCEL_TOKEN` in `.env`.
-
-`VERCEL_ORG_ID` und `VERCEL_PROJECT_ID` werden pro App gesetzt (siehe Bootstrap).
-
-### 7. Supabase (optional, je nach App)
-
-Pro App: 2 Projects (Stage + Prod) auf supabase.com → URL Refs in `.env`.
-
-## App-Bootstrap
+## 1. Plugin installieren
 
 ```bash
-cd <monorepo-root>  # apps-Repo
-bash scripts/bootstrap-app.sh --name <app-name> --prefix <PREFIX> --stack web
+cd <app-verzeichnis>
+claude plugin marketplace add KornmuellerConsulting/work-convention-plugin
+claude plugin install work-convention@kornmueller-empire
 ```
 
-Was passiert (10 Steps):
-1. Validate args (kebab-case, prefix uppercase, no collision)
-2. Folder anlegen: `apps/<name>/`
-3. `apps/example-web/` als Skeleton kopieren
-4. `package.json` patchen (Name, Workspace-Refs)
-5. CLAUDE.md placeholder-replace
-6. ClickUp-Space anlegen (Variant A: own Space)
-7. ClickUp-Custom-Fields anlegen
-8. Slack-Channel erstellen (`#<app>-build`)
-9. Vercel-Project anlegen (Mono-Repo-Mode)
-10. Supabase Stage + Prod (optional, prompt)
-
-Im Fehlerfall ERR-Trap → cleanup-failed-bootstrap.sh aufrufen.
-
-## Plugin installieren
-
-In der gerade gebootstrappten App:
-
-```bash
-cd apps/<app-name>
-claude plugin install KornmuellerConsulting/work-convention-plugin
-```
-
-Das ruft `post-install.sh` auf:
-- Kopiert `.claude/`-Komponenten
-- Kopiert CLAUDE.md ins App-Root (falls nicht vorhanden)
-- Kopiert `.env.example` ins App-Root
-- Setzt Marker
-
-## .env ausfüllen
+## 2. `.env` anlegen
 
 ```bash
 cp .env.example .env
-# Editieren mit Werten aus den Pre-Setups oben
 ```
 
-## Healthcheck
+Trag die drei Identity-Keys ein (siehe `.env.example` im Plugin-Repo):
 
 ```bash
-bash .claude/scripts/healthcheck.sh
+APP_NAME="customer-portal"
+APP_PROJECT_PREFIX="CUST"       # Ticket-Prefix + Empire-App-Marker
+CURRENT_OPERATOR="justin"        # oder "patrick"
 ```
 
-Prüft:
-- Plugin-Files vollständig
-- Identity (APP_NAME, OPERATOR)
-- ClickUp/Slack/Pushover/WhatsApp/Tools
+`APP_PROJECT_PREFIX` ist doppelt wichtig: es ist das Ticket-Prefix fürs
+Commit-Format (`feat(CUST-42): ...`) **und** der Marker, an dem
+`session-start-ensure-git-hooks.sh` erkennt, dass dies eine Empire-App ist,
+in der die git-Hooks automatisch installiert werden dürfen. Ohne diesen Key
+fasst das Plugin fremde Repos nie an.
 
-Bei `❌ Fail`-Output: behebe vor erstem Tool-Use.
-
-## Erstes Smoke-Test
-
-```bash
-# Notification-Test
-bash .claude/scripts/notify-test.sh all
-
-# Status-Generator
-python3 .claude/scripts/status-generate.py --mode markdown
-
-# Plugin-Audit (Curated-Empfehlungen)
-python3 .claude/scripts/plugin-audit.py --mode bootstrap
-```
-
-## Erste Claude-Code-Session
+## 3. Session starten
 
 ```bash
 claude code
 ```
 
-Beim Start läuft `session-start-briefing.sh`. Du siehst:
-- Operator
-- App
-- Branch
-- Eventuelle Reviewer-Findings
-- Hard-Trigger-Status
+Beim ersten Start installiert `session-start-ensure-git-hooks.sh` automatisch
+die git-Hooks (`commit-msg`, `pre-commit`, `pre-push`) — kein manueller Schritt
+nötig. Bei jedem weiteren Session-Start hält derselbe Hook die Wrapper auf der
+aktuellen Plugin-Version, auch nach Plugin-Updates.
 
-Beispiel-Prompt: `Status zeigen` → führt `/status` aus.
-
-## Advisor-Modell (automatisch, ab Plugin-Version 1.2.4)
-
-Claude Code kann bei unsicheren Entscheidungen automatisch ein zweites, stärkeres
-Modell konsultieren ("Advisor", ab Claude Code v2.1.170). Der Hook
-`session-start-advisor-default.sh` trägt beim ersten Sessionstart nach
-Plugin-Install/-Update `advisorModel: "opus"` in die lokale `~/.claude/settings.json`
-ein, **falls dort noch keiner gesetzt ist**. Läuft auf jeder Maschine automatisch,
-sobald das Plugin dort installiert/geupdated wird — kein manueller Schritt pro
-Person/Gerät nötig. Eine bereits vorhandene, explizite Wahl (auch ein anderes
-Modell) wird nie überschrieben.
-
-Gilt **pro Maschine**, nicht pro Account — auf jedem Rechner, auf dem `claude`
-läuft (Terminal oder Claude Desktop), muss das Plugin einmal laufen, damit der
-Hook feuert. Kein Cloud-Sync über Geräte hinweg, das gibt's in Claude Code nicht.
-
-Ändern/deaktivieren jederzeit selbst:
+## 4. Healthcheck zur Kontrolle
 
 ```bash
-# in einer echten Terminal-Session (nicht im Claude-Desktop-Chat-Fenster —
-# dort blockt /advisor mit "opens an interactive panel", weil es einen
-# Picker öffnet; ist eine Einschränkung der Desktop-Oberfläche, kein Bug):
-/advisor sonnet   # oder: opus, fable
-/advisor          # Picker mit allen erlaubten Kombinationen
-/advisor off      # deaktivieren
+bash ~/.claude/plugins/cache/kornmueller-empire/work-convention/<version>/scripts/healthcheck.sh
 ```
 
-Oder direkt in `~/.claude/settings.json`. Seit dem Fix an
-`pre-edit-plugin-files.sh` (1.2.4) schützt der Hook dort nur noch
-`enabledPlugins`/`extraKnownMarketplaces` (echtes Plugin-Wiring), generische
-Settings wie `advisorModel` sind frei editierbar.
+Prüft:
+- Plugin-Files vollständig (11 Hook-Scripts, hooks.json, 7 Agents mit Model-Pins)
+- git-Hooks App-lokal installiert und auf aktueller Plugin-Version
+- `.env`: `APP_PROJECT_PREFIX` und `CURRENT_OPERATOR` gesetzt
+- Tools: `git`, `jq`, `gitleaks` (optional), `gh` (optional)
 
-Anderen Default als `opus`? `WORK_CONVENTION_ADVISOR_DEFAULT` in `.env` setzen,
-bevor der Hook zum ersten Mal läuft.
+Bei `❌`-Output vor dem ersten Tool-Use beheben.
 
-Erlaubte Advisor-Modelle hängen vom Hauptmodell ab (Sonnet-5-Main akzeptiert
-`sonnet`, `opus`, `fable` als Advisor; ein Sonnet-4.6-Advisor wird abgelehnt).
-Details: [offizielle Advisor-Doku](https://code.claude.com/docs/en/advisor).
+## Optional — Layer-3-Notify
 
-## Häufige Fehler beim ersten Setup
+Nur nötig, wenn `/escalate 3` echte Slack/Pushover/WhatsApp-Nachrichten
+verschicken soll statt sich nur lokal zu melden. Ohne die folgenden Keys in
+`.env` funktioniert alles andere trotzdem — `/escalate 3` meldet sich dann
+nur im Chat.
+
+### Slack (optional)
+
+Slack-App erstellen: https://api.slack.com/apps → Create New App → From scratch.
+
+OAuth-Scopes (Bot-Token): `chat:write`, `chat:write.public`, `channels:read`,
+`channels:join`.
+
+Bot installieren, Bot-Token → `SLACK_BOT_TOKEN` in `.env`. User-IDs für
+Mentions (Slack → Profil → "..." → Member-ID) → `SLACK_USER_PATRICK`,
+`SLACK_USER_JUSTIN`.
+
+### Pushover (optional)
+
+https://pushover.net → App registrieren → `PUSHOVER_APP_TOKEN`. User-Keys
+aus dem jeweiligen Dashboard → `PUSHOVER_USER_PATRICK`, `PUSHOVER_USER_JUSTIN`.
+
+### WhatsApp via CallMeBot (optional, best-effort)
+
+1. `+34 644 51 95 23` als Kontakt speichern
+2. `I allow callmebot to send me messages` an die Nummer senden
+3. Auf Antwort mit API-Key warten
+4. In `.env`: `CALLMEBOT_PHONE_PATRICK`/`CALLMEBOT_APIKEY_PATRICK` (analog Justin)
+
+Details: [docs/NOTIFICATION.md](./NOTIFICATION.md)
+
+## Häufige Fehler beim Setup
 
 | Fehler | Lösung |
 |--------|--------|
-| `CLICKUP_API_TOKEN nicht gesetzt` | `.env` korrekt geladen? `set -a; source .env; set +a` |
-| Slack `auth.test` fail | Token kopiert? Bot ins Workspace installiert? |
-| Pushover P0/P1 nicht angekommen | Device-Key korrekt? Pushover-App auf Phone offen? |
-| ClickUp 404 bei Custom-Fields | Liste richtig? `bootstrap-clickup-fields.py` zuerst? |
-| `chmod +x` fehlt | `find .claude -name "*.sh" -exec chmod +x {} \;` |
+| git-Hooks installieren sich nicht | `APP_PROJECT_PREFIX` in `.env` gesetzt? Neue Session starten |
+| `chmod +x` fehlt bei App-lokalen Scripts | `find .claude -name "*.sh" -exec chmod +x {} \;` |
+| Layer-3-Notify kommt nicht an | Siehe [NOTIFICATION.md](./NOTIFICATION.md) — alle Keys optional, ohne sie nur lokale Meldung |
 
 Detail-Troubleshooting: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)

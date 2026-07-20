@@ -1,121 +1,53 @@
-# QUICKSTART — Neue App in ~20 Minuten
+# QUICKSTART — Golden Path (unter 5 Minuten)
 
-Voraussetzung: Pre-Setups laut [SETUP.md](./SETUP.md) sind einmalig durch (ClickUp/Slack/Pushover/WhatsApp/GitHub/Vercel-Tokens in `apps/.env`).
+Kein Bootstrap-Skript, kein ClickUp, kein Pre-Setup nötig. v2.0 ist Plugin
+installieren, `.env` mit drei Identity-Keys, Session starten.
 
 ## Golden Path
 
 ```bash
-# 0. Apps-Monorepo
-cd ~/Documents/Kornmueller/apps
-
-# 1. Bootstrap — legt apps/<name>/ aus example-web-Skeleton an,
-#    erstellt ClickUp-Space + Slack-Channel #<name>-build
-bash scripts/bootstrap-app.sh --name customer-portal --prefix CUST
-
-# 2. In die neue App wechseln
+# 1. In die App wechseln
 cd apps/customer-portal
 
-# 3. Plugin installieren (einmalig pro Maschine: marketplace add zuerst)
+# 2. Plugin installieren (einmalig pro Maschine: marketplace add zuerst)
 claude plugin marketplace add KornmuellerConsulting/work-convention-plugin
 claude plugin install work-convention@kornmueller-empire
 
-# 4. App-spezifische .env
+# 3. .env anlegen
 cp .env.example .env
 # In .env eintragen:
 #   APP_NAME=customer-portal
 #   APP_PROJECT_PREFIX=CUST
 #   CURRENT_OPERATOR=justin    (oder patrick)
 
-# 5. ClickUp-Custom-Fields anlegen (Space-ID + List-ID aus Bootstrap-Output zuerst in .env)
-PLUGIN_SCRIPTS=$(find ~/.claude/plugins/cache/kornmueller-empire/work-convention -name scripts -type d | sort -V | tail -1)
-python3 "$PLUGIN_SCRIPTS/bootstrap-clickup-fields.py"
-
-# 6. Git-Hooks installieren (einmalig pro Monorepo)
-bash "$PLUGIN_SCRIPTS/install-git-hooks.sh"
-
-# 7. Healthcheck — sollte 30/30 grün
-CLAUDE_PROJECT_DIR=$(pwd) bash "$PLUGIN_SCRIPTS/healthcheck.sh"
-
-# 8. Dependencies + Dev-Server
-pnpm install
-pnpm dev
-```
-
-## Verifikation
-
-Nach Step 7 sollte der Healthcheck zeigen:
-
-```
-═══ Summary ═══
-  Total: 30 — ✅ 30 / ⚠️  0 / ❌ 0
-```
-
-Wenn nicht: siehe [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
-
-## Smoke-Test der Notification-Pipeline
-
-```bash
-PLUGIN_SCRIPTS=$(find ~/.claude/plugins/cache/kornmueller-empire/work-convention -name scripts -type d | sort -V | tail -1)
-bash "$PLUGIN_SCRIPTS/notify-test.sh" all
-```
-
-Erwartung:
-- Slack-Message in `#<app>-build`
-- Pushover-Push P0 (wenn PUSHOVER_* gesetzt)
-- WhatsApp an beide (wenn CALLMEBOT_* gesetzt)
-
-## Erste Claude-Session
-
-```bash
+# 4. Session starten — git-Hooks (commit-msg/pre-commit/pre-push) installieren
+#    sich automatisch, weil APP_PROJECT_PREFIX gesetzt ist
 claude code
 ```
 
-Beim Start läuft `session-start-briefing.sh` und zeigt Operator/App/Branch.
+Fertig. Kein manueller Hook-Install, kein ClickUp-Space, kein Slack-Channel.
 
-Erste Prompts:
-- `Status zeigen` → führt `/status` aus
-- `Wer bin ich gerade?` → `/where` zeigt Identity
-- `Tickets zu CUST anzeigen` → `/ticket fetch CUST`
-
-## CI/CD verifizieren
-
-Erster Push triggert die Workflows in `apps/.github/workflows/`:
-- `ci-test.yaml` — lint + test
-- `ci-deploy-staging.yaml` — Vercel-Preview
-- `ci-deploy-prod.yaml` — wird nur durch Tag `<app>-v1.2.3` getriggert (5-Min-Abort)
-- `clickup-spiegel.yaml` — sync Status → ClickUp
-- `slack-status-digest.yaml` — Tages-Digest in #empire-status
+## Verifikation
 
 ```bash
-git add -A
-git commit -m "feat(CUST-1): initial scaffold"
-git push origin main
-gh run watch
+bash ~/.claude/plugins/cache/kornmueller-empire/work-convention/<version>/scripts/healthcheck.sh
 ```
 
-## Wenn etwas schief geht
+Erwartung: keine `❌`-Zeilen. Details zu Fehlermeldungen:
+[TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
-```bash
-# Bootstrap rückgängig (löscht App-Folder + ClickUp-Space)
-bash scripts/cleanup-failed-bootstrap.sh --name customer-portal
+## Erste Prompts
 
-# Plugin-Cache neu pullen
-claude plugin marketplace update kornmueller-empire
-claude plugin update work-convention@kornmueller-empire
-
-# Hooks-Test (zeigt ob alle 22 Hook-Tests grün sind)
-PLUGIN_HOOKS=$(find ~/.claude/plugins/cache/kornmueller-empire/work-convention -name hooks -type d | sort -V | tail -1)
-bash "$PLUGIN_HOOKS/tests/test-runner.sh"
-```
+- `Ticket CUST-1 umsetzen` → Builder-Subagent-Workflow
+- `/escalate 3 "Beschreibung"` → Layer-3-Eskalation (siehe [ESCALATION.md](./ESCALATION.md))
 
 ## Was dann?
 
 Ab hier ist die App im Workflow:
-- Tickets in ClickUp, Custom-IDs `CUST-NNN`
-- Conventional Commits mit Ticket-ID (per git-Hook enforced)
-- Decision-Blocks für nicht-triviale Wahlen → `DECISIONS.md`
-- `/handoff` am Session-Ende → postet Stand zu ClickUp
-- 3-Layer-Eskalation greift automatisch ab Fail #3
+- Conventional Commits mit Ticket-ID (`feat(CUST-42): ...`, per git-Hook enforced)
+- Decision-Blocks für nicht-triviale Wahlen → `DECISIONS.md` (Append-Only)
+- Offene Issues → `BLOCKERS.md`
+- 3-Layer-Eskalation greift automatisch ab Fail #3 (Hard-Block ab Fail #4)
 
 Volle Konstitution: [Master-CLAUDE.md](../templates/CLAUDE.md)
 Working-Agreement: [WORKING_AGREEMENT.md](./WORKING_AGREEMENT.md)

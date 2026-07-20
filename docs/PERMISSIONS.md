@@ -5,12 +5,11 @@
 | GitHub Org        | Owner   | Owner  |
 | Apps Repo (push)  | ✅      | ✅     |
 | Plugin Repo       | ✅      | ✅     |
-| ClickUp (alle Spaces) | Admin | Admin |
 | Vercel (alle Projects)| Admin | Admin |
 | Supabase (alle)   | Admin   | Admin  |
-| Slack Workspace   | Admin   | Admin  |
-| Pushover          | Owner   | Owner  |
-| WhatsApp Bot      | -       | -      |
+| Slack Workspace (optional, Layer-3-Notify) | Admin | Admin |
+| Pushover (optional, Layer-3-Notify) | Owner | Owner |
+| WhatsApp Bot (optional, Layer-3-Notify) | - | - |
 
 Beide haben volle Rechte überall. Keine Hierarchie.
 
@@ -20,12 +19,11 @@ Beide haben volle Rechte überall. Keine Hierarchie.
 - Code, Tests, Migrations schreiben (nicht ausführen gegen Prod)
 - Library installieren
 - Stage-Deploys (push auf main)
-- ClickUp/Slack-Posts
-- Decision-Blocks
+- Decision-Blocks in DECISIONS.md
 
 **Nicht autonom:**
 - Production-Deploys (manuell via Tag, 5-Min Abort)
-- Destructive SQL gegen Prod
-- Plugin-Files editieren
-- Cross-App-Imports
+- Destructive SQL gegen Prod (Hook blockt, siehe `pre-bash-guards.sh`)
+- Plugin-Files editieren (Hook blockt, siehe `pre-edit-guards.sh`)
+- Cross-App-Imports (Hook blockt)
 - Layer-3-Decisions ohne beide Co-Founder
