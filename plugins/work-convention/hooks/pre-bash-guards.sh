@@ -99,14 +99,15 @@ fi
 
 # --- 4. Migrations-Slot ------------------------------------------------------
 if echo "$CMD" | grep -qE 'supabase\s+(db|migration)|prisma\s+migrate|drizzle.*migrate'; then
-  if [ -f "$PROJECT_DIR/.env" ] && bash -n "$PROJECT_DIR/.env" 2>/dev/null; then
-    set -a
-    # shellcheck disable=SC1091
-    source "$PROJECT_DIR/.env" 2>/dev/null || true
-    set +a
+  # CURRENT_OPERATOR gezielt extrahieren statt sourcen — ein bash -n-Gate
+  # sperrte den Operator bei teilinvalider .env von seinem EIGENEN Lock aus
+  # (Fallback "unknown") und vergiftete den Slot für den anderen.
+  OPERATOR=""
+  if [ -f "$PROJECT_DIR/.env" ]; then
+    OPERATOR=$(sed -n 's/^CURRENT_OPERATOR=//p' "$PROJECT_DIR/.env" 2>/dev/null | head -1 | tr -d '"'"'")
   fi
+  OPERATOR="${OPERATOR:-unknown}"
   LOCK_FILE="$STATE_DIR/migration.lock"
-  OPERATOR="${CURRENT_OPERATOR:-unknown}"
   if [ -f "$LOCK_FILE" ]; then
     HOLDER=$(cat "$LOCK_FILE" 2>/dev/null)
     if [ "$HOLDER" != "$OPERATOR" ]; then

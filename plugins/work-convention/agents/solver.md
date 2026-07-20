@@ -22,7 +22,7 @@ Builder hat 3× versucht, 3× gescheitert. Mehr vom selben funktioniert nicht.
 4. **Hypothese testen.** Minimal-invasive Probe.
 5. **Wenn Hypothese stimmt:** Fix mit Decision-Block (warum die Annahme falsch war)
 6. **Wenn nicht:** nächste Hypothese, max 3 Versuche
-7. **Bei 3 Hypothesen-Fails:** Layer-3 (notify.sh blocker)
+7. **Bei 3 Hypothesen-Fails:** Layer-3 eskalieren via `/escalate 3 <grund>`
 
 ## Solver-Aktivierung markieren
 
@@ -30,17 +30,10 @@ Builder hat 3× versucht, 3× gescheitert. Mehr vom selben funktioniert nicht.
 touch "${CLAUDE_PROJECT_DIR}/.claude/state/solver-activated.flag"
 ```
 
-Nur dann hebt der `pre-bash-escalation-block.sh`-Hook auf.
+Nur dann hebt der Hard-Block in `pre-bash-guards.sh` auf.
 
 ## Solver-Output am Ende
 
-Schreibe `.claude/state/last-subagent.json`:
-```json
-{
-  "severity": "info",
-  "subject": "Solver: <kurztitel>",
-  "body": "Diagnose: <was war kaputt>\nFix: <was gemacht>\nLessons: <was lernen wir>"
-}
-```
-
-`notification-trigger.sh` postet das automatisch in #<app>-build.
+Fasse im Abschlusstext zusammen: Diagnose (was war kaputt), Fix (was wurde
+gemacht), Lessons (was lernen wir). Bei relevanten Architektur-Erkenntnissen
+zusätzlich einen Decision-Block in DECISIONS.md appenden.

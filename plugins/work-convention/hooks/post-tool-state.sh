@@ -15,6 +15,9 @@ mkdir -p "$STATE_DIR"
 INPUT=$(cat 2>/dev/null || echo '{}')
 TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 EXIT_CODE=$(echo "$INPUT" | jq -r '.tool_response.exit_code // 0' 2>/dev/null)
+# jq auf leerem/kaputtem Input liefert Leerstring — das ist kein Fail,
+# sonst zählt jeder Hook-Aufruf ohne parsebares JSON den Counter hoch.
+[ -z "$EXIT_CODE" ] && EXIT_CODE=0
 
 # Nicht jedes Tool liefert exit_code — Bash liefert stdout/stderr/interrupted.
 if [ "$EXIT_CODE" = "0" ] || [ "$EXIT_CODE" = "null" ]; then

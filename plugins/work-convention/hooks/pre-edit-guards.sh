@@ -34,8 +34,12 @@ plugin_file_guard() {
       local NEW_CONTENT OLD_VAL NEW_VAL
       NEW_CONTENT=$(echo "$INPUT" | jq -r '.tool_input.content // empty' 2>/dev/null)
       for key in "${PROTECTED_KEYS[@]}"; do
-        OLD_VAL=$(jq -c ".${key} // null" "$FILE" 2>/dev/null)
+        # Fehlende/invalide Zieldatei = "Key nicht gesetzt" (null), sonst blockt
+        # die Neuanlage einer settings.json mit harmlosem Inhalt fälschlich.
+        OLD_VAL=$(jq -c ".${key} // null" "$FILE" 2>/dev/null) || OLD_VAL=null
+        [ -z "$OLD_VAL" ] && OLD_VAL=null
         NEW_VAL=$(echo "$NEW_CONTENT" | jq -c ".${key} // null" 2>/dev/null)
+        [ -z "$NEW_VAL" ] && NEW_VAL=null
         if [ "$OLD_VAL" != "$NEW_VAL" ]; then
           BLOCK_REASON="Write ändert geschützten Key '$key'"
           break
@@ -95,20 +99,23 @@ MSG
 plugin_file_guard || exit 2
 
 # --- 2. Monorepo-Boundary ----------------------------------------------------
-if [ -f "$PROJECT_DIR/.env" ] && bash -n "$PROJECT_DIR/.env" 2>/dev/null; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$PROJECT_DIR/.env" 2>/dev/null || true
-  set +a
+# APP_NAME gezielt extrahieren statt die .env zu sourcen. Verifiziert: ein
+# bash -n-Gate vor dem Sourcen schaltete den Guard bei teilinvalider .env
+# (z.B. MSG=don't) komplett fail-open — der alte Hook blockte da noch, weil
+# beim Sourcen die Variablen VOR dem Parse-Error gesetzt wurden. Extraktion
+# ist gegen beides immun.
+APP_NAME_ENV=""
+if [ -f "$PROJECT_DIR/.env" ]; then
+  APP_NAME_ENV=$(sed -n 's/^APP_NAME=//p' "$PROJECT_DIR/.env" 2>/dev/null | head -1 | tr -d '"'"'")
 fi
 
-if [ -n "${APP_NAME:-}" ] && [[ "$FILE" =~ /apps/([^/]+)/ ]]; then
+if [ -n "$APP_NAME_ENV" ] && [[ "$FILE" =~ /apps/([^/]+)/ ]]; then
   TARGET_APP="${BASH_REMATCH[1]}"
-  if [ "$TARGET_APP" != "$APP_NAME" ]; then
+  if [ "$TARGET_APP" != "$APP_NAME_ENV" ]; then
     cat <<MSG >&2
 🚫 BLOCKED: Cross-App-Edit verboten.
 
-Du arbeitest in App "$APP_NAME", willst aber editieren in: $TARGET_APP
+Du arbeitest in App "$APP_NAME_ENV", willst aber editieren in: $TARGET_APP
 
 Lösung:
   - Geteilter Code → packages/shared-types/ oder neues packages/shared-*/

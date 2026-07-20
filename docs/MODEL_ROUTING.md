@@ -23,7 +23,7 @@ in den Apps.
 | `builder` | `sonnet` | high | Implementiert ein Ticket mit definierten Acceptance-Criteria. Hohes Effort gleicht die Denkarbeit aus. |
 | `debugger` | `sonnet` | high | Repro, Isolation und Bisect sind mechanisch; die Root-Cause-Hypothese braucht Effort, nicht das größte Modell. |
 | `researcher` | `sonnet` | medium | Lese-lastigster Agent. Viele Quellen sichten und zu einer Tradeoff-Tabelle kondensieren ist Zusammenfassung, nicht Erfindung. |
-| `reviewer` | `haiku` | medium | Checklisten-Drift-Detection, läuft im 30-Min-Takt, Blast-Radius null (schreibt nur ein Finding-File). |
+| `reviewer` | `haiku` | medium | Checklisten-Drift-Detection auf Abruf (bis v1.3 im 30-Min-Takt angemahnt), Blast-Radius null (schreibt nur ein Finding-File). |
 | `scout` | `haiku` | low | Read-only Such-Worker. Liest viel, gibt wenig zurück. |
 
 ## Das Prinzip dahinter
