@@ -1,6 +1,8 @@
 # work-convention-plugin
 
-Claude-Code-Plugin-Marketplace für das Kornmueller-Consulting-Empire (Patrick + Justin). Liefert Hooks, Subagents, Slash-Commands, ClickUp/Slack-Integration und das 3-Layer-Eskalations-Modell für alle Apps im Empire.
+Claude-Code-Plugin-Marketplace für das Kornmueller-Consulting-Empire (Patrick + Justin). Liefert model-gepinnte Subagents, selbstinstallierende git-Hooks, Secret/Prod-Guards und das 3-Layer-Eskalations-Modell für alle Apps im Empire.
+
+**Lean-Core-Prinzip (v2.0):** Jede Zeile Session-Output und jedes Kontext-Snippet wird in *jeder* Session bezahlt. Hooks sind entweder deterministische Guards (blocken bei Verstoß, schweigen sonst) oder sie existieren nicht. Kein Briefing, keine Hints, kein Auto-Sync zu externen Diensten.
 
 ## Architektur (Pattern D)
 
@@ -16,14 +18,13 @@ Public Plugin-Repo + private Apps-Repo. Beide bei `KornmuellerConsulting` auf Gi
 .claude-plugin/marketplace.json    Marketplace-Katalog (1 Plugin)
 plugins/work-convention/
   .claude-plugin/plugin.json       Plugin-Manifest
-  hooks/hooks.json                 Hook-Wiring (Claude-Code-Events)
-  hooks/*.sh                       27 Hook-Scripts
-  agents/*.md                      7 Subagents (builder/solver/reviewer/researcher/debugger/deployer/scout)
-  commands/*.md                    9 Slash-Commands
-  skills/audit-plugins/SKILL.md    Plugin-Audit-Skill
-  scripts/*.sh,*.py                notify.sh, clickup-spiegel.py, healthcheck.sh, install-git-hooks.sh, etc.
-templates/                         CLAUDE.md, STATUS.md.template etc. die in jede App kopiert werden
-docs/                              SETUP.md, ESCALATION.md, HOOKS.md, etc.
+  hooks/hooks.json                 Hook-Wiring (7 Registrierungen)
+  hooks/*.sh                       11 Hook-Scripts (3 Dispatcher + 4 git-Hook-Targets + 4 einzelne)
+  agents/*.md                      7 Subagents, alle mit Model-Pin (docs/MODEL_ROUTING.md)
+  commands/escalate.md             der einzige Slash-Command (Eskalations-State + Layer-3)
+  scripts/                         install-git-hooks.sh, healthcheck.sh, notify.sh-Familie (Layer-3)
+templates/                         CLAUDE.md, BLOCKERS/DECISIONS-Templates für Apps
+docs/                              MODEL_ROUTING.md, HOOKS.md, ESCALATION.md, etc.
 ```
 
 ## Hook-Mechanik (kritisch)
@@ -68,19 +69,16 @@ TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 
 ## Aktuelle Version
 
-**v1.3.0** (2026-07-19) — Model-Routing. Jeder Subagent hat jetzt ein explizites
-`model:` im Frontmatter. Ohne Pin galt `inherit`, womit bei Opus-als-Hauptmodell
-auch der 30-Minuten-Reviewer und der lese-lastige Researcher auf Opus liefen.
-Neu dazu: `scout` (haiku, read-only) für große mechanische Lese-Jobs, und ein
-Opt-out-Guard im Advisor-Hook. Routing-Tabelle mit Rationale:
-[docs/MODEL_ROUTING.md](./docs/MODEL_ROUTING.md).
+**v2.0.0** (2026-07-20) — Lean Core. Radikaler Schnitt nach verifizierter
+Community-Recherche: 27 Hooks → 11 (drei konsolidierte Dispatcher), 9 Commands
+→ 1, ClickUp/Slack-Spiegel komplett raus, Briefing/Hints raus. Neu:
+`session-start-ensure-git-hooks.sh` installiert die git-Hooks selbst und zieht
+sie bei jedem Update automatisch auf die aktuelle Version. Dabei gefixt: der
+Eskalations-Hard-Block gab `exit 1` zurück und hat deshalb nie real geblockt.
 
-Davor v1.2.0 (2026-05-15) — Production-fit nach mehrtägiger Diagnose:
-- PreCommit/PrePush aus hooks.json raus → Plugin-Hooks feuern endlich
-- Alle PreToolUse/PostToolUse-Hooks auf stdin-JSON umgestellt
-- notify.sh-Pfade auf ${CLAUDE_PLUGIN_ROOT}
-- Neuer install-git-hooks.sh für commit-msg/pre-commit/pre-push
-- WhatsApp 5-Min subject-hash-dedup statt 30-Min global cooldown
+Davor v1.3.0 (2026-07-19) — Model-Routing: jeder Subagent mit explizitem
+`model:`-Pin, `scout` (haiku, read-only) neu. Rationale:
+[docs/MODEL_ROUTING.md](./docs/MODEL_ROUTING.md).
 
 Siehe [CHANGELOG.md](./CHANGELOG.md) für die volle History.
 
@@ -139,7 +137,7 @@ Vor jedem Release:
    # → /exit
    grep -iE "registered.*hooks|hook.*load|sessionstart" /tmp/claude-debug.log
    ```
-   Erwartung: `Registered N hooks from 1 plugins` (N≥10). Wenn 0: invalid Event in hooks.json.
+   Erwartung: `Registered 7 hooks from 1 plugins`. Wenn 0: invalid Event in hooks.json.
 
 ## Debugging
 
@@ -164,11 +162,10 @@ Beide gleichberechtigt, beide Admin im Plugin-Repo + Apps-Repo. Im App-Workflow 
 
 Siehe `docs/WORKING_AGREEMENT.md`. Kern:
 
-- **Conventional Commits + Ticket-ID** (per git-Hook enforced)
-- **DECISIONS.md ist Append-Only** (keine History-Rewrites)
-- **Operator-Wechsel via Stop-Hook** (postet Hand-off zu ClickUp)
-- **Layer-3-Eskalation** (3+ Fails → Solver-Subagent, sonst Hard-Block)
-- **Plugin-Files nicht direkt in der App editieren** (`pre-edit-plugin-files.sh` blockt)
+- **Conventional Commits + Ticket-ID** (per git-Hook enforced, installiert sich seit v2.0 selbst)
+- **DECISIONS.md ist Append-Only** (keine History-Rewrites; von Claude direkt gepflegt, nicht von Hooks)
+- **Layer-Eskalation** (3+ Fails → Solver-Subagent; Fail #4 ohne Solver → echter Hard-Block, exit 2)
+- **Plugin-Files nicht direkt in der App editieren** (`pre-edit-guards.sh` blockt)
 
 ## Wichtige NICHTs
 

@@ -1,57 +1,135 @@
-# Hooks — Inventar
+# Hooks — Inventar (v2.0)
 
-19+ Hooks in `claude/hooks/`. Wiring in `claude/settings.json`.
+11 Hook-Scripts in `plugins/work-convention/hooks/`, Wiring in
+`plugins/work-convention/hooks/hooks.json`. 7 davon sind bei Claude Code
+als Event-Hooks registriert (`hooks.json`), 4 sind git-Hook-Targets (werden
+nicht von Claude Code, sondern von echtem `git commit`/`git push` aufgerufen).
 
-## SessionStart
-- `session-start-identity-pin.sh` — Pinnt Operator/Branch/HEAD in `.claude/state/session-identity.json`
-- `session-start-briefing.sh` — Lädt CLAUDE.md, STATUS.md, BLOCKERS.md, Reviewer-Findings ins Context
-- `session-start-advisor-default.sh` — Setzt `advisorModel` einmalig in `~/.claude/settings.json`, falls nicht schon gesetzt (überschreibt nie eine bestehende Wahl)
+**Leitprinzip:** Hooks sind deterministische Guards. Sie blocken bei Verstoß
+und schweigen sonst. Kein Auto-Sync, keine Briefings, keine Hints — jede
+Ausgabezeile bei Session-Start ist Kontext, den jede Session bezahlt.
 
-## UserPromptSubmit
-- `userprompt-context-refresh.sh` — Zeigt Hard-Trigger-Hint und Reviewer-Findings
-- `userprompt-todo-reminder.sh` — Erinnert an TodoWrite bei Multi-Step-Prompts
-- `userprompt-reviewer-trigger.sh` — Triggert Reviewer-Subagent-Hint alle 30 Min
+## Die 7 Registrierungen (`hooks.json`)
 
-## PreToolUse:Bash
-- `pre-bash-escalation-block.sh` — Hard-Block ab Fail #4 ohne Solver
-- `pre-bash-head-drift.sh` — Warnt bei extern verändertem HEAD
-- `block-secret-body.sh` — Blockt Secret-Patterns in Bash-Bodies
-- `block-prod-destructive.sh` — Blockt destructive SQL gegen Prod
-- `pre-bash-migration-slot.sh` — Verhindert parallele Migrations
-- `pre-bash-test-pre-push.sh` — Triggert pre-push-tests bei git push
+| Event | Matcher | Script |
+|-------|---------|--------|
+| `SessionStart` | – | `session-start-ensure-git-hooks.sh` |
+| `SessionStart` | – | `session-start-advisor-cleanup.sh` |
+| `UserPromptSubmit` | – | `userprompt-context-refresh.sh` |
+| `PreToolUse` | `Bash` | `pre-bash-guards.sh` |
+| `PreToolUse` | `Edit\|Write` | `pre-edit-guards.sh` |
+| `PostToolUse` | – | `post-tool-state.sh` |
+| `Stop` | – | `stop-completeness.sh` |
 
-## PreToolUse:Edit/Write
-- `pre-edit-plugin-files.sh` — Blockt direkte Edits in `.claude/{hooks,agents,...}`; bei `settings.json` nur die Plugin-Wiring-Keys `enabledPlugins`/`extraKnownMarketplaces` (generische Settings wie `advisorModel`, `theme` sind frei)
-- `pre-edit-monorepo-boundary.sh` — Blockt Cross-App-Edits
-- `pre-edit-secret-body.sh` — Defense 2nd-line gegen Secret-Patterns
+Nur diese 7 Events sind in `hooks.json` erlaubt zu benutzen (siehe
+Projekt-`CLAUDE.md` für die vollständige Liste valider Claude-Code-Events).
+Eine einzige invalide Event-Property killt das gesamte Plugin-Hook-System
+(Schema-Validierung ist all-or-nothing) — deshalb ist die Registrierungs-Tabelle
+oben die einzige Quelle der Wahrheit, nicht Prosa.
 
-## PostToolUse
-- `escalation-counter.sh` — Zählt Fails, Auto-Reset bei Success
-- `posttooluse-status-refresh.sh` — Aktualisiert STATUS.md (throttled 1×/Min)
-- `notification-trigger.sh` — Routet Subagent-Resultate
+## Die Dispatcher-Idee: 1 Prozess statt 6
 
-## PostToolUse:Bash
-- `post-bash-head-record.sh` — Speichert HEAD nach jedem Bash
+`pre-bash-guards.sh` und `pre-edit-guards.sh` sind konsolidierte Dispatcher.
+Vor v2.0 gab es für jede Bash- bzw. Edit/Write-Prüfung ein eigenes Hook-Script,
+das heißt einen eigenen Prozess-Spawn pro Tool-Use. v2.0 bündelt das:
 
-## PostToolUse:Edit/Write
-- `posttooluse-decision-markup.sh` — Parsed Decision-Blocks, postet als ClickUp-Comment
+- **`pre-bash-guards.sh`** (PreToolUse:Bash) — ersetzt 5 Einzel-Hooks in einem
+  Prozess:
+  1. Eskalations-Hard-Block (Fail #4 ohne Solver)
+  2. Secret-Patterns im Command-Body
+  3. Destruktive Befehle mit Prod-Bezug
+  4. Migrations-Slot-Lock zwischen Operatoren
+  5. HEAD-Drift-Warnung (warnt nur, blockt nie)
+- **`pre-edit-guards.sh`** (PreToolUse:Edit|Write) — ersetzt 3 Einzel-Hooks:
+  1. Plugin-File-Schutz (App-lokale `.claude/`-Plugin-Folders, key-scoped
+     Schutz für `settings.json`)
+  2. Monorepo-Boundary (Cross-App-Edits)
+  3. Secret-Patterns im File-Content
+- **`post-tool-state.sh`** (PostToolUse) — ersetzt 2 Einzel-Hooks: Eskalations-
+  Counter (alle Tools) + HEAD-Record (nur nach Bash).
 
-## Stop
-- `stop-handoff-comment.sh` — Postet Hand-off-Comment im aktiven Task
-- `stop-completeness.sh` — Diagnose ungelöster Issues
+## Die 11 Files
 
-## PreCommit
-- `gitleaks-precommit.sh` — Secret-Scan
-- `precommit-ticket-id-required.sh` — Erzwingt Conventional-Commit + Ticket-ID
+### SessionStart
+- `session-start-ensure-git-hooks.sh` — installiert/erneuert die git-Hooks
+  (commit-msg/pre-commit/pre-push) automatisch pro Session-Start. Siehe
+  Gate-Regeln unten.
+- `session-start-advisor-cleanup.sh` — einmalige v1.2.4-Migration: entfernt
+  ein historisch fälschlich global gesetztes `advisorModel: "opus"` aus
+  `~/.claude/settings.json`. Läuft genau einmal pro Maschine (Marker-File),
+  danach dauerhaft ein No-Op.
 
-## PrePush
-- `pre-branch-fresh.sh` — Local nicht hinter origin/main
-- `pre-push-tests.sh` — Lokale Tests vor Push (Audit-Fix #18)
+### UserPromptSubmit
+- `userprompt-context-refresh.sh` — still. Meldet nur, wenn ein Hard-Trigger
+  aktiv ist oder ein offenes Reviewer-Finding existiert. Kein Auto-Kontext
+  sonst.
+
+### PreToolUse
+- `pre-bash-guards.sh` — Dispatcher, siehe oben.
+- `pre-edit-guards.sh` — Dispatcher, siehe oben.
+
+### PostToolUse
+- `post-tool-state.sh` — Dispatcher, siehe oben.
+
+### Stop
+- `stop-completeness.sh` — warnt bei Session-Ende über uncommitted changes,
+  einen noch aktiven Hard-Trigger, oder offene Einträge in `BLOCKERS.md`.
+  Warnt nur, blockt nicht.
+
+### git-Hook-Targets (kein Claude-Code-Event, echte git-Hooks)
+- `precommit-ticket-id-required.sh` — erzwingt Conventional-Commit +
+  Ticket-ID im commit-msg-Hook.
+- `gitleaks-precommit.sh` — Secret-Scan über staged files via gitleaks im
+  pre-commit-Hook.
+- `pre-branch-fresh.sh` — verweigert Push, wenn lokal hinter `origin/main`.
+- `pre-push-tests.sh` — führt `pnpm test`/`npm test` vor dem Push aus.
+
+Diese vier werden **nicht** über `hooks.json` verdrahtet — `PreCommit` und
+`PrePush` sind keine validen Claude-Code-Events. Sie laufen als echte
+git-Hooks in `.git/hooks/{commit-msg,pre-commit,pre-push}`, installiert über
+`scripts/install-git-hooks.sh`.
+
+## Der `session-start-ensure-git-hooks.sh`-Mechanismus
+
+Macht die git-Hooks "plug and active", ohne fremde Repos anzufassen. Schließt
+zwei Lücken aus v1.x: `install-git-hooks.sh` musste vorher manuell pro App
+ausgeführt werden, und die installierten Wrapper pinnten den absoluten
+Cache-Pfad der damaligen Plugin-Version — nach jedem Update liefen die
+git-Hooks auf altem Stand weiter.
+
+**Gate-Regeln (bewusst konservativ):**
+
+- Kein git-Repo → exit, nichts passiert.
+- Plugin-Source-Checkout (dieses Repo selbst) → exit; hier zeigen Hooks
+  absichtlich auf den Arbeitsstand, nicht auf den Cache.
+- Installiert/erneuert **nur** wenn eines von beidem gilt:
+  - a) unsere Hooks sind schon da (Marker `auto-generated by work-convention`
+    in der Hook-Datei), zeigen aber auf einen anderen `PLUGIN_ROOT` als den
+    aktuellen → Refresh.
+  - b) die App ist als Empire-App markiert (`.env` mit `APP_PROJECT_PREFIX`
+    gesetzt) und die Hooks fehlen → frische Installation.
+- Fremde Repos ohne Marker und ohne `APP_PROJECT_PREFIX` in `.env` werden
+  **nie** angefasst — auch nicht teilweise. Findet der Hook eine
+  `commit-msg`/`pre-commit`/`pre-push`-Datei ohne unseren Marker, bricht er
+  mit einer Warnung ab statt zu überschreiben.
+- Genau eine Ausgabezeile, wenn etwas getan wurde. Sonst Stille.
+
+## Blocks sind `exit 2`
+
+Claude-Code-Convention: nur `exit 2` blockt ein Tool-Use wirklich, `exit 1`
+und höhere Codes werden nur als Fehler geloggt, verhindern die Tool-Ausführung
+aber nicht. Alle Guards in `pre-bash-guards.sh` und `pre-edit-guards.sh` geben
+bei einem Verstoß `exit 2` zurück.
+
+**Historischer Bug (bis v1.3):** der Eskalations-Hard-Block gab `exit 1`
+zurück statt `exit 2` und hat deshalb nie wirklich geblockt — er hat nur eine
+Warnung ausgegeben, während die Bash-Ausführung trotzdem durchlief. Seit v2.0
+(im konsolidierten `pre-bash-guards.sh`) ist das korrigiert; der Hard-Block ab
+Fail #4 blockt jetzt tatsächlich.
 
 ## Tests
 
 ```bash
-bash .claude/hooks/tests/test-runner.sh           # alle
-bash .claude/hooks/tests/test-runner.sh --verbose # mit Output
-bash .claude/hooks/tests/test-runner.sh secret    # nur Secret-Tests
+bash plugins/work-convention/hooks/tests/test-runner.sh           # alle
+bash plugins/work-convention/hooks/tests/test-runner.sh --verbose # mit Output
 ```

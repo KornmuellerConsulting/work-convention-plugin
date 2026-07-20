@@ -3,80 +3,51 @@
 ## Hooks
 
 ### "Hooks laufen nicht"
-- `chmod +x .claude/hooks/*.sh`
-- `claude/settings.json` korrekt gewiret? → `cat .claude/settings.json | jq .hooks`
+- `chmod +x plugins/work-convention/hooks/*.sh` (im Plugin-Cache: `~/.claude/plugins/cache/kornmueller-empire/work-convention/<version>/hooks/*.sh`)
+- Registrierung prüfen: `claude -d hooks --debug-file /tmp/claude-debug.log` → `/exit` →
+  `grep -iE "registered.*hooks|hook.*load" /tmp/claude-debug.log`. Erwartung:
+  `Registered 7 hooks from 1 plugins`. Bei 0: invalides Event in `hooks.json`
+  (siehe [HOOKS.md](./HOOKS.md)).
 
 ### "Hard-Trigger lässt sich nicht aufheben"
-- Aktiviere Solver: `Aktiviere Solver-Subagent für [Problem]`
+- Aktiviere Solver: `Aktiviere Solver-Subagent für [Problem]` oder `/escalate 2 [Problem]`
 - Oder: `/escalate reset`
 
 ### "HEAD-Drift-Warnung trotz keiner externen Änderung"
 - Vermutlich Pre-Tool-Use vor Post-Tool-Use mit unterschiedlichen HEADs
 - Reset: `rm .claude/state/last-head.txt`
 
-## ClickUp
+### "Eskalations-Hard-Block blockt nicht wirklich"
+- Historischer Bug bis v1.3: der damalige Einzel-Hook gab `exit 1` statt
+  `exit 2` zurück. Seit v2.0 (`pre-bash-guards.sh`) korrigiert. Wenn ein
+  App-lokaler `.claude/settings.local.json`-Override noch den alten Hook
+  verdrahtet: entfernen, Plugin-Wiring greifen lassen.
 
-### "401 Unauthorized"
-- `CLICKUP_API_TOKEN` korrekt? Token enthält keine Anführungszeichen
-- Token Scopes prüfen
+## git-Hooks (commit-msg / pre-commit / pre-push)
 
-### "404 Task not found"
-- Custom-ID muss `<PREFIX>-<n>` sein, exact case
-- `CLICKUP_TEAM_ID` korrekt gesetzt
-- Alternativ Internal-ID verwenden
+### "git-Hooks installieren sich nicht automatisch"
+- `APP_PROJECT_PREFIX` in `.env` gesetzt? Ohne diesen Marker fasst
+  `session-start-ensure-git-hooks.sh` das Repo nicht an.
+- Neue Claude-Code-Session starten (der Hook läuft bei `SessionStart`).
+- Manueller Fallback: `bash <plugin>/scripts/install-git-hooks.sh`
 
-### "Status-Transition not allowed"
-- Workflow erlaubt kein Rückwärts. Override: `--force`
+### "git-Hooks zeigen auf alte Plugin-Version"
+- Nächster Session-Start zieht automatisch nach. Sofort: erneut
+  `install-git-hooks.sh` laufen lassen.
 
-### "Custom-Fields fehlen"
-- Run: `python3 .claude/scripts/bootstrap-clickup-fields.py`
-- Field-IDs aus Output in `.env` eintragen
+### "Commit wird wegen Ticket-ID abgelehnt"
+- Format: `<type>(<PREFIX>-<nr>): <description>`, `<type>` aus
+  `feat|fix|chore|docs|refactor|test|perf|style`.
 
-## Slack
+### "pre-commit bricht wegen gitleaks"
+- `gitleaks` nicht installiert → Scan wird übersprungen, keine Blockade.
+  Installieren: `brew install gitleaks`.
+- Bei echtem Secret-Fund: Secret aus dem Diff entfernen, in `.env` auslagern.
 
-### `auth.test` schlägt fehl
-- Bot-Token (`xoxb-...`) statt User-Token (`xoxp-...`)?
-- Bot ins Workspace installiert?
-- App-Settings → "Install App" geprüft?
-
-### "channel_not_found" bei Post
-- Bot ist Channel-Member? `conversations.join` benötigt `channels:join`-Scope
-- Channel-Name ohne `#`-Prefix übergeben
-
-### Mentions funktionieren nicht
-- `SLACK_USER_PATRICK` = Member-ID (z.B. `U12ABC...`), nicht Username
-
-## Pushover
-
-### "P0 Push kommt nicht an"
-- App auf Phone gestartet?
-- App-Token korrekt (eine pro App, gleich für beide)?
-- User-Key pro Person individuell
-
-### "P2 Push kommt 1×, dann Ruhe"
-- P2 = Acknowledge-required. User muss in Pushover-App acken
-- Retry/Expire: 60s/3600s konfiguriert
-
-## WhatsApp
-
-### "Message queued but not delivered"
-- WhatsApp-Initialisierung gemacht? (`I allow callmebot to send me messages`)
-- API-Key korrekt aus CallMeBot-Antwort?
-- Telefonnummer mit Ländercode (`+49...`)
-
-### "Rate-Limit-Skip"
-- 30 Min Cooldown pro Empfänger
-- Reset: `rm .claude/state/wa-rate-PATRICK.timestamp`
-
-## Bootstrap
-
-### "Scheitert mitten drin"
-- Cleanup: `bash .claude/scripts/cleanup-failed-bootstrap.sh --name <app>`
-- Manuell: Vercel-Project, Supabase-Projects via Dashboard
-
-### "Plugin nicht installiert"
-- Manuell: `claude plugin install KornmuellerConsulting/work-convention-plugin`
-- Oder: `bash <path-to-plugin>/scripts/post-install.sh`
+### "pre-push bricht wegen Tests"
+- `pnpm test`/`npm test` lokal ausführen und Fehler beheben, bevor erneut
+  gepusht wird. Kein Override außer bewusstem `--no-verify` (dokumentiere das
+  in DECISIONS.md, falls wirklich nötig).
 
 ## Migration-Lock hängt
 
@@ -84,18 +55,37 @@
 rm .claude/state/migration.lock
 ```
 
-Auto-Cleanup nach 30 Min, aber falls Process tot: manuell.
+Auto-Cleanup nach 30 Min, aber falls der Prozess tot ist: manuell.
 
-## Notification-Spam
+## Layer-3-Notify (`/escalate 3`)
 
-Dedup-Window 5 Min. Bei wiederkehrenden Spam-Events:
-- Severity zu hoch gewählt? → `info` statt `warning`
-- Hook-Logik fehlerhaft? → `notify.log` checken in `.claude/state/`
+Alle Channels sind optional — ohne konfigurierte Keys meldet sich
+`/escalate 3` nur lokal im Chat, die Eskalation selbst funktioniert trotzdem.
+
+### Slack `auth.test` schlägt fehl
+- Bot-Token (`xoxb-...`) statt User-Token (`xoxp-...`)?
+- Bot ins Workspace installiert?
+
+### "channel_not_found" bei Post
+- Bot ist Channel-Member? `conversations.join` benötigt `channels:join`-Scope
+
+### Pushover kommt nicht an
+- App auf Phone gestartet?
+- App-Token korrekt, User-Key pro Person individuell?
+
+### WhatsApp "Message queued but not delivered"
+- Initialisierung gemacht? (`I allow callmebot to send me messages`)
+- API-Key korrekt aus CallMeBot-Antwort? Telefonnummer mit Ländercode?
+
+### "Rate-Limit-Skip"
+- 30 Min Cooldown pro Empfänger. Reset: `rm .claude/state/wa-rate-PATRICK.timestamp`
 
 ## Plugin-Update bricht
 
-Backup ist da: `.claude.backup-<timestamp>/`. Rollback:
+Das Plugin liegt nur im Marketplace-Cache (`~/.claude/plugins/cache/...`),
+keine App-lokale Kopie mehr — nichts zu reparieren auf App-Seite. Erneut
+ziehen und Session neu starten:
 ```bash
-rm -rf .claude
-mv .claude.backup-* .claude
+claude plugin marketplace update kornmueller-empire
+claude plugin update work-convention@kornmueller-empire
 ```

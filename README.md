@@ -14,17 +14,15 @@ claude plugin marketplace add KornmuellerConsulting/work-convention-plugin
 claude plugin install work-convention@kornmueller-empire
 ```
 
-## Was das Plugin liefert
+## Was das Plugin liefert (v2.0 — Lean Core)
 
-- **14-Paragraphen-Konstitution** als `CLAUDE.md`-Template (in `templates/`)
-- **25 Hooks** — Schutz, Identity, Eskalation, Status, Kontext, Konvention
-- **7 Subagents** — Builder, Solver (Layer 2), Reviewer (30min Drift), Researcher, Debugger, Deployer, Scout — jeder mit festem Modell ([Routing](docs/MODEL_ROUTING.md))
-- **9 Slash-Commands** — `/status`, `/where`, `/blocked`, `/handoff`, `/escalate`, `/ticket`, `/deploy`, `/decision`, `/newapp`
-- **3-Layer-Eskalations-Modell** mit Hard-Trigger ab Fail #3
-- **ClickUp-Worker** — Status-Spiegelung, Decision-Markup, Hand-off-Comments
-- **Notification-Stack** — Slack (chat.postMessage), Pushover, WhatsApp (CallMeBot)
-- **Plugin-Audit-Skill** — kuratierte App-spezifische Plugin-Empfehlungen
-- **Tests** — alle Hooks + Healthcheck + Dry-Run-Bootstrap
+- **7 Subagents mit Model-Pins** — Builder, Solver (Layer 2), Reviewer, Researcher, Debugger, Deployer, Scout. Der direkteste Hebel auf Abo-Limits: Lese- und Review-Arbeit läuft auf haiku/sonnet, nur Solver/Deployer auf opus ([Routing + Rationale](docs/MODEL_ROUTING.md))
+- **Selbstinstallierende git-Hooks** — Ticket-ID-Zwang, gitleaks-Secret-Scan, Branch-Fresh + Tests vor Push. Installieren und aktualisieren sich pro Session-Start selbst (nur in Empire-Apps, fremde Repos bleiben unberührt)
+- **3 konsolidierte Guard-Dispatcher** — Secrets/Prod-Destructive/Migrations-Lock/Eskalations-Block (Bash), Plugin-File-Schutz/Monorepo-Boundary/Secrets (Edit/Write), Fail-Counter/HEAD-Record (PostToolUse). Blocken bei Verstoß, schweigen sonst
+- **3-Layer-Eskalations-Modell** — Hard-Trigger ab Fail #3, echter Hard-Block ab Fail #4, `/escalate` für Layer-Wechsel und Reset, Layer-3-Notify via Slack/Pushover/WhatsApp
+- **Tests** — 57 Hook-Tests + Healthcheck, CI-enforced
+
+**Bewusst NICHT enthalten:** Auto-Sync zu externen Diensten, Session-Briefings, Hint-Hooks, Plugin-Kataloge. Jede Zeile Idle-Kontext wird in jeder Session bezahlt — Install-Skepsis vor jedem neuen Tool: *Läuft es ohne API-Key gegen Plan-Limits? Was kostet es idle im Kontext? Dupliziert es, was wir haben?*
 
 ## Update einer App
 
@@ -47,13 +45,12 @@ work-convention-plugin/
 ├── plugins/
 │   └── work-convention/      ← Das eigentliche Plugin
 │       ├── .claude-plugin/plugin.json
-│       ├── agents/           ← 7 Subagents
-│       ├── commands/         ← 9 Slash-Commands
-│       ├── hooks/            ← 25 Hooks + hooks.json (Wiring)
-│       ├── skills/           ← Plugin-Audit-Skill
-│       └── scripts/          ← notify.sh, clickup-spiegel.py, etc.
-├── templates/                ← CLAUDE.md, STATUS.md.template, etc.
-├── docs/                     ← SETUP.md, ESCALATION.md, HOOKS.md, etc.
+│       ├── agents/           ← 7 Subagents (alle model-gepinnt)
+│       ├── commands/         ← /escalate
+│       ├── hooks/            ← 11 Hook-Scripts + hooks.json (7 Registrierungen)
+│       └── scripts/          ← install-git-hooks.sh, healthcheck.sh, notify.sh
+├── templates/                ← CLAUDE.md, BLOCKERS/DECISIONS-Templates
+├── docs/                     ← MODEL_ROUTING.md, HOOKS.md, ESCALATION.md, etc.
 ├── README.md
 ├── LICENSE                   ← MIT
 └── CHANGELOG.md
@@ -62,7 +59,7 @@ work-convention-plugin/
 ## Setup pro App
 
 - **Quickstart (~20 Min)**: [docs/QUICKSTART.md](./docs/QUICKSTART.md) — Golden Path mit Bootstrap-Skript
-- **Vollständige Setup-Anleitung**: [docs/SETUP.md](./docs/SETUP.md) — alle Pre-Setups (ClickUp/Slack/Pushover/WhatsApp/Vercel/Supabase)
+- **Vollständige Setup-Anleitung**: [docs/SETUP.md](./docs/SETUP.md)
 
 ## Co-Founder
 

@@ -12,8 +12,7 @@ Layer-3-Eskalationen werden beide parallel gepingt (`broadcast_both`).
 Pro Worktree wird `CURRENT_OPERATOR` in `.env` gesetzt:
 - `CURRENT_OPERATOR="patrick"` oder `CURRENT_OPERATOR="justin"`
 
-Damit weiß Claude wer gerade redet. `session-start-identity-pin.sh` schreibt
-das in `.claude/state/session-identity.json`.
+Damit weiß Claude wer gerade redet — gelesen z.B. vom Migrations-Slot-Lock.
 
 ## Kein Konflikt-Veto
 
@@ -27,23 +26,20 @@ zusammen, klären synchron.
 
 ## Migration-Slot-Lock
 
-Nur einer migriert pro App gleichzeitig. `pre-bash-migration-slot.sh` setzt Lock
-für 30 Min. Override: andere Person löscht `.claude/state/migration.lock`.
+Nur einer migriert pro App gleichzeitig. `pre-bash-guards.sh` setzt bei
+DB-Migrations-Commands einen Lock für 30 Min. Override: andere Person löscht
+`.claude/state/migration.lock`.
 
 ## Hand-off-Protokoll
 
-Wer aufhört committed alles und ruft `/handoff` → postet Comment im aktiven
-ClickUp-Task mit Branch, HEAD, Status. Andere Person kann nahtlos einsteigen.
-
-## ClickUp-Variante A
-
-Pro App eigener Space. Beide haben Vollzugriff auf alle Spaces. Custom-Task-IDs
-mit Prefix (z.B. `EXAMPLE-42`).
+Wer aufhört committed alles und pflegt `BLOCKERS.md`/`DECISIONS.md` auf den
+aktuellen Stand, damit die andere Person beim nächsten Session-Start ohne
+Rückfrage einsteigen kann. Kein automatischer Hand-off-Post mehr — der
+Zustand steht in den Dateien selbst, nicht in einem externen Kommentar.
 
 ## Weekly Sync
 
 Jeden Sonntag 18 Uhr (oder nach Verfügbarkeit):
-- Empire-Status review (Dashboard auf GitHub-Pages)
-- Open Blockers
+- Open Blockers (`BLOCKERS.md` je App)
 - Strategie für nächste Woche
 - Plugin-Improvements
