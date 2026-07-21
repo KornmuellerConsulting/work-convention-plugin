@@ -50,7 +50,7 @@ bash ~/.claude/plugins/cache/kornmueller-empire/work-convention/<version>/script
 ```
 
 Prüft:
-- Plugin-Files vollständig (11 Hook-Scripts, hooks.json, 7 Agents mit Model-Pins)
+- Plugin-Files vollständig (13 Hook-Scripts, hooks.json, 7 Agents mit Model-Pins)
 - git-Hooks App-lokal installiert und auf aktueller Plugin-Version
 - `.env`: `APP_PROJECT_PREFIX` und `CURRENT_OPERATOR` gesetzt
 - Tools: `git`, `jq`, `gitleaks` (optional), `gh` (optional)
