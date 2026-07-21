@@ -18,13 +18,13 @@ Public Plugin-Repo + private Apps-Repo. Beide bei `KornmuellerConsulting` auf Gi
 .claude-plugin/marketplace.json    Marketplace-Katalog (1 Plugin)
 plugins/work-convention/
   .claude-plugin/plugin.json       Plugin-Manifest
-  hooks/hooks.json                 Hook-Wiring (7 Registrierungen)
-  hooks/*.sh                       11 Hook-Scripts (3 Dispatcher + 4 git-Hook-Targets + 4 einzelne)
+  hooks/hooks.json                 Hook-Wiring (9 Registrierungen)
+  hooks/*.sh                       13 Hook-Scripts (3 Dispatcher + 4 git-Hook-Targets + 6 einzelne)
   agents/*.md                      7 Subagents, alle mit Model-Pin (docs/MODEL_ROUTING.md)
   commands/escalate.md             der einzige Slash-Command (Eskalations-State + Layer-3)
-  scripts/                         install-git-hooks.sh, healthcheck.sh, notify.sh-Familie (Layer-3)
+  scripts/                         install-git-hooks.sh, healthcheck.sh, statusline.sh, notify.sh-Familie
 templates/                         CLAUDE.md, BLOCKERS/DECISIONS-Templates für Apps
-docs/                              MODEL_ROUTING.md, HOOKS.md, ESCALATION.md, etc.
+docs/                              MODEL_ROUTING.md, HOOKS.md, STATUSLINE.md, ESCALATION.md, etc.
 ```
 
 ## Hook-Mechanik (kritisch)
@@ -69,16 +69,20 @@ TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 
 ## Aktuelle Version
 
-**v2.0.0** (2026-07-20) — Lean Core. Radikaler Schnitt nach verifizierter
-Community-Recherche: 27 Hooks → 11 (drei konsolidierte Dispatcher), 9 Commands
-→ 1, ClickUp/Slack-Spiegel komplett raus, Briefing/Hints raus. Neu:
-`session-start-ensure-git-hooks.sh` installiert die git-Hooks selbst und zieht
-sie bei jedem Update automatisch auf die aktuelle Version. Dabei gefixt: der
-Eskalations-Hard-Block gab `exit 1` zurück und hat deshalb nie real geblockt.
+**v2.1.0** (2026-07-21) — Tacho & Selbstversorgung. Statusline-Tacho
+(`scripts/statusline.sh`, Opt-in via [docs/STATUSLINE.md](./docs/STATUSLINE.md) —
+Claude Code kann keine Plugin-Statusline-Defaults, empirisch verifiziert),
+Self-Update-Hook (`session-start-check-update.sh`, 1x/24h detached, Gate
+`WORK_CONVENTION_AUTO_UPDATE=off`), Compact-Anker
+(`session-start-compact-anchor.sh`, Matcher `compact`: Branch/Ticket/BLOCKERS
+nach Compaction). hooks.json: 7 → 9 Registrierungen.
 
-Davor v1.3.0 (2026-07-19) — Model-Routing: jeder Subagent mit explizitem
-`model:`-Pin, `scout` (haiku, read-only) neu. Rationale:
-[docs/MODEL_ROUTING.md](./docs/MODEL_ROUTING.md).
+Davor v2.0.0 (2026-07-20) — Lean Core: 27 Hooks → 11 (drei konsolidierte
+Dispatcher), 9 Commands → 1, ClickUp/Slack-Spiegel raus, Briefing/Hints raus,
+git-Hooks selbstinstallierend. Dabei gefixt: der Eskalations-Hard-Block gab
+`exit 1` zurück und hat deshalb nie real geblockt. Davor v1.3.0 —
+Model-Routing: jeder Subagent mit explizitem `model:`-Pin
+([docs/MODEL_ROUTING.md](./docs/MODEL_ROUTING.md)).
 
 Siehe [CHANGELOG.md](./CHANGELOG.md) für die volle History.
 
@@ -137,7 +141,7 @@ Vor jedem Release:
    # → /exit
    grep -iE "registered.*hooks|hook.*load|sessionstart" /tmp/claude-debug.log
    ```
-   Erwartung: `Registered 7 hooks from 1 plugins`. Wenn 0: invalid Event in hooks.json.
+   Erwartung: `Registered 9 hooks from 1 plugins`. Wenn 0: invalid Event in hooks.json.
 
 ## Debugging
 

@@ -1,7 +1,7 @@
 {
   "name": "kornmueller-empire",
   "description": "Kornmueller Consulting Plugin-Marketplace für das Multi-App-Empire.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "owner": {
     "name": "Kornmueller Consulting",
     "email": "patrick@kornmueller-consulting.de"
@@ -13,8 +13,8 @@
     {
       "name": "work-convention",
       "source": "./plugins/work-convention",
-      "description": "Model-gepinnte Subagents, selbstinstallierende git-Hooks, Secret/Prod-Guards, 3-Layer-Eskalation für Empire-Apps.",
-      "version": "2.0.0",
+      "description": "Model-gepinnte Subagents, selbstinstallierende git-Hooks, Secret/Prod-Guards, 3-Layer-Eskalation, Statusline-Tacho und Self-Update für Empire-Apps.",
+      "version": "2.1.0",
       "author": {
         "name": "Patrick Kornmüller + Justin Görmez"
       },

@@ -5,6 +5,23 @@ Alle bemerkenswerten Änderungen am Plugin werden hier dokumentiert.
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung folgt [Semver](https://semver.org/lang/de/).
 
+## [2.1.0] — 2026-07-21
+
+> **Tacho & Selbstversorgung.** Zwei chronische Schmerzen auf 2× Max-Abo ohne API-Budget: (1) man sieht Kontext- und Limit-Verbrauch erst, wenn es weh tut, (2) Plugin-Updates mussten auf jeder Maschine in jeder App von Hand gezogen werden. Beides jetzt ambient bzw. automatisch — streng Lean-Core-konform: die Statusline kostet null Kontext-Tokens (rendert nur im Terminal), der Update-Check spricht nur, wenn ein Neustart wirklich etwas aktiviert, der Compact-Anker nur direkt nach einer Compaction. Jedes Feature vorab gegen Claude Code 2.1.210 empirisch verifiziert statt aus Community-Gerüchten gebaut.
+
+### Added
+- **`scripts/statusline.sh`** — eine Zeile: Modell | Kontext-% (grün < 50, gelb < 75, rot ab 75) | 5h-Limit-% | Wochen-Limit-%. Nur jq + Bash-Builtins, kein git/Netz, ~5 ms, Windows/Git-Bash-tauglich. Jedes fehlende **oder null-wertige** stdin-Feld lässt sein Segment stumm weg — API-Sessions haben keine `rate_limits`, und der allererste Render einer Session liefert `used_percentage=null` (beides real gemessen). Feldwerte werden per jq-Codepoint-Filter (regexfrei — jq-Regex-Escapes sind zwischen Oniguruma-Builds nicht portabel) von Control-Chars bereinigt und nie als printf-Format interpretiert: ANSI-/printf-Injection über `model.display_name` ist tot.
+  **Bewusst Opt-in statt Plugin-Default:** empirisch verifiziert (Testplugin via `--plugin-dir`: Hook feuerte, `settings.json`-Statusline blieb tot) — eine Plugin-`settings.json` unterstützt nur `agent`/`subagentStatusLine`, und die Settings-Precedence kennt keinen Plugin-Layer. Aktivierung per Einzeiler mit `sort -V`-Cache-Resolver (überlebt jedes Update): [docs/STATUSLINE.md](./docs/STATUSLINE.md). Das Plugin schreibt niemals in User-Settings.
+- **`hooks/session-start-check-update.sh`** — das letzte manuelle Update war v2.1.0 selbst. Teil A (offline, sofort): liegt im Cache eine höhere Version als die laufende, kommt genau eine Zeile „vX liegt bereit — Neustart aktiviert sie", sonst Stille. Teil B (detached): max. 1x/24h (Throttle-Marker), `claude plugin marketplace update` + `claude plugin update` als Hintergrund-Job mit geschlossenen FDs und `timeout 120` — SessionStart wartet keine Millisekunde auf Netz. Detached-Update neben offener Session empirisch verifiziert: non-interaktiv, exit 0, versionierter Cache lässt laufende Sessions ungestört. Gates: `WORK_CONVENTION_AUTO_UPDATE=off` (Env oder App-`.env`, sed-Extract statt source), fehlendes claude-Binary, Plugin-Source-Checkout, atomarer mkdir-Lock gegen Doppelstart (verwaiste Locks > 60 min werden aufgeräumt), `${CLAUDE_PLUGIN_ROOT:-}`-Härtung.
+- **`hooks/session-start-compact-anchor.sh`** (SessionStart, Matcher `compact`) — nach einer (Auto-)Compaction verblassen die operativen Anker zuerst. Der Hook injiziert einmalig Branch, aktives Ticket (`.claude/state/active-ticket.txt`, sonst Ticket-ID aus dem letzten Commit-Subject — die ist dank commit-msg-Hook verlässlich da) und einen BLOCKERS.md-Pointer. Doppelt abgesichert (Matcher **und** eigener `source=compact`-Check): in Sessions ohne Compaction exakt null Kontext.
+- **`templates/CLAUDE.md`: Session-Hygiene** (bleibt unter 150 Zeilen) — bei klarem Themenwechsel aktiv eine neue Session vorschlagen; große mechanische Lese-Jobs an den `scout`-Subagent delegieren statt im Hauptkontext zu lesen.
+- **`docs/STATUSLINE.md`** — Opt-in-Snippet, Verhalten, Phase-0-Befunde. Inklusive dokumentiertem Befund zum Auto-Compact-Schwellwert: **nicht** über `settings.json` konfigurierbar, nur via `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE`-Env-Var (im 2.1.210-Binary verifiziert); das Plugin setzt sie bewusst nicht.
+- **Healthcheck v2.1** — prüft zusätzlich Statusline-Opt-in (Warnung mit Doku-Pointer) und ob der Self-Update-Marker existiert.
+
+### Changed
+- `hooks.json`: 7 → 9 Registrierungen (beide neuen SessionStart-Hooks; Compact-Anker mit Matcher `compact`).
+- `.env.example`: `WORK_CONVENTION_AUTO_UPDATE` dokumentiert (Default: an).
+
 ## [2.0.0] — 2026-07-20
 
 > **Lean Core.** Radikaler Schnitt auf Basis einer verifizierten Community-Recherche (21 Agenten, Skeptiker-geprüft): Behalten wurde nur, was sich auf Merit rechtfertigt — Model-Pins, deterministische git-Hooks, Eskalation, Secret/Prod-Guards. Alles, was pro Session Kontext kostet ohne pro Session Wert zu liefern, ist raus. Kern-Erkenntnis der Recherche: Jede Zeile Session-Start-Output und jeder Hint-Hook wird in *jeder* Session bezahlt; auf 2× Max-Abo ohne API-Budget ist Idle-Kontext der teuerste Posten des Plugins gewesen.

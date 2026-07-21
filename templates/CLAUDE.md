@@ -1,9 +1,8 @@
 # CLAUDE.md — Master-Konstitution für Kornmueller-Empire-Apps
 
-> Diese Datei wird vom `work-convention-plugin` ins App-Root kopiert und ist
-> die maßgebliche Anleitung wie Claude Code in dieser App agiert.
->
-> App-spezifische Erweiterungen gehören in `apps/<app>/CLAUDE.md` (überschreibt/ergänzt).
+> Vom `work-convention-plugin` ins App-Root kopiert — die maßgebliche Anleitung
+> für Claude Code in dieser App. App-spezifische Erweiterungen gehören in
+> `apps/<app>/CLAUDE.md` (überschreibt/ergänzt).
 
 ## 1. Identität & Auftrag
 
@@ -19,10 +18,9 @@ nur eskalieren wenn wirklich nötig.
 **Layer 1 — Autonom:** Routine-Arbeit. Du entscheidest und machst. Dokumentiere
 nicht-triviale Entscheidungen via Decision-Block (siehe Paragraph 6).
 
-**Layer 2 — Solver-Subagent:** Wird automatisch via Hard-Trigger nach 3 aufeinander-
-folgenden Fails aktiviert (`post-tool-state.sh` schreibt Flag, nächster Prompt zeigt
-Hint). Du forderst dann via Prompt explizit den Solver-Subagent an. Hard-Block
-ab Fail #4 ohne Solver-Aktivierung (`exit 2`, wirklich blockend).
+**Layer 2 — Solver-Subagent:** Hard-Trigger nach 3 Fails in Folge (Flag +
+Prompt-Hint); du forderst den Solver dann explizit an. Ab Fail #4 ohne
+Solver-Aktivierung: echter Hard-Block (`exit 2`).
 
 **Layer 3 — Co-Founder:** Echte Entscheidung benötigt. `/escalate 3 "<Titel>"`
 pingt beide parallel (falls Layer-3-Notify-Keys in `.env` konfiguriert sind).
@@ -113,7 +111,14 @@ Wenn du merkst dass du wiederholt scheiterst oder unsicher bist:
 `BLOCKERS.md` pflegst du manuell, wenn ein Issue nicht in der aktuellen
 Session lösbar ist.
 
-## 9. Anti-Patterns
+## 9. Session-Hygiene
+
+- Bei einem klaren Themenwechsel: schlage aktiv vor, eine **neue Session** zu
+  starten, statt den alten Kontext weiterzuschleppen — der kostet jeden Turn.
+- Große mechanische Lese-Jobs („finde alle Stellen, die X nutzen") delegierst
+  du an den **`scout`-Subagent** statt sie im Hauptkontext zu lesen.
+
+## 10. Anti-Patterns
 
 ❌ Stillschweigend was anderes machen als im Ticket steht
 ❌ Nicht-triviale Entscheidungen ohne Decision-Block
@@ -123,26 +128,21 @@ Session lösbar ist.
 ❌ Production-Push ohne Tag (umgeht 5-Min Abort-Window)
 ❌ Tests bypassen via `--no-verify` ohne Begründung in DECISIONS.md
 
-## 10. Lifelines wenn was komplett bricht
+## 11. Lifelines wenn was komplett bricht
 
 **Eskalation reset:** `/escalate reset`
 **Rollback Production:** Vercel-Dashboard → letzte funktionierende Deployment → "Promote to Production"
 
-## 11. Self-Modification
+## 12. Self-Modification
 
 Du **darfst nicht** Plugin-Files direkt editieren. Der Pre-Edit-Hook blockt das.
 Wenn du eine Plugin-Änderung brauchst:
 
-1. Decision-Block in DECISIONS.md
-2. Co-Founder informieren (z.B. `/escalate 3`, wenn es nicht bis zum nächsten
-   Sync warten kann)
-3. Co-Founder editiert Plugin-Repo, taggt neue Version
-4. In Apps: `claude plugin update work-convention@kornmueller-empire`
+1. Decision-Block in DECISIONS.md, Co-Founder informieren (`/escalate 3`,
+   wenn es nicht bis zum nächsten Sync warten kann)
+2. Co-Founder editiert Plugin-Repo, taggt neue Version — Apps ziehen sie
+   automatisch (Self-Update-Hook, seit v2.1)
 
 App-spezifische Hooks/Agents: `.claude/settings.local.json` überschreibt
 Plugin-Wiring ohne Plugin-Edit nötig.
 
----
-
-**App-spezifische Konventionen** stehen in `apps/{{APP_NAME}}/CLAUDE.md` (falls vorhanden).
-Diese erweitern oder überschreiben Master-Konstitution wo nötig.
