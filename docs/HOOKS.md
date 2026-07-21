@@ -1,27 +1,30 @@
-# Hooks — Inventar (v2.0)
+# Hooks — Inventar (v2.1)
 
-11 Hook-Scripts in `plugins/work-convention/hooks/`, Wiring in
-`plugins/work-convention/hooks/hooks.json`. 7 davon sind bei Claude Code
+13 Hook-Scripts in `plugins/work-convention/hooks/`, Wiring in
+`plugins/work-convention/hooks/hooks.json`. 9 davon sind bei Claude Code
 als Event-Hooks registriert (`hooks.json`), 4 sind git-Hook-Targets (werden
 nicht von Claude Code, sondern von echtem `git commit`/`git push` aufgerufen).
 
-**Leitprinzip:** Hooks sind deterministische Guards. Sie blocken bei Verstoß
-und schweigen sonst. Kein Auto-Sync, keine Briefings, keine Hints — jede
-Ausgabezeile bei Session-Start ist Kontext, den jede Session bezahlt.
+**Leitprinzip:** Hooks sind deterministische Guards oder ambiente Anzeigen.
+Sie blocken bei Verstoß und schweigen sonst. Kein Auto-Sync, keine Briefings,
+keine Hints — jede Ausgabezeile bei Session-Start ist Kontext, den jede
+Session bezahlt. Output nur, wenn er actionable ist.
 
-## Die 7 Registrierungen (`hooks.json`)
+## Die 9 Registrierungen (`hooks.json`)
 
 | Event | Matcher | Script |
 |-------|---------|--------|
 | `SessionStart` | – | `session-start-ensure-git-hooks.sh` |
 | `SessionStart` | – | `session-start-advisor-cleanup.sh` |
+| `SessionStart` | – | `session-start-check-update.sh` |
+| `SessionStart` | `compact` | `session-start-compact-anchor.sh` |
 | `UserPromptSubmit` | – | `userprompt-context-refresh.sh` |
 | `PreToolUse` | `Bash` | `pre-bash-guards.sh` |
 | `PreToolUse` | `Edit\|Write` | `pre-edit-guards.sh` |
 | `PostToolUse` | – | `post-tool-state.sh` |
 | `Stop` | – | `stop-completeness.sh` |
 
-Nur diese 7 Events sind in `hooks.json` erlaubt zu benutzen (siehe
+Nur valide Events sind in `hooks.json` erlaubt zu benutzen (siehe
 Projekt-`CLAUDE.md` für die vollständige Liste valider Claude-Code-Events).
 Eine einzige invalide Event-Property killt das gesamte Plugin-Hook-System
 (Schema-Validierung ist all-or-nothing) — deshalb ist die Registrierungs-Tabelle
@@ -48,7 +51,7 @@ das heißt einen eigenen Prozess-Spawn pro Tool-Use. v2.0 bündelt das:
 - **`post-tool-state.sh`** (PostToolUse) — ersetzt 2 Einzel-Hooks: Eskalations-
   Counter (alle Tools) + HEAD-Record (nur nach Bash).
 
-## Die 11 Files
+## Die 13 Files
 
 ### SessionStart
 - `session-start-ensure-git-hooks.sh` — installiert/erneuert die git-Hooks
@@ -58,6 +61,21 @@ das heißt einen eigenen Prozess-Spawn pro Tool-Use. v2.0 bündelt das:
   ein historisch fälschlich global gesetztes `advisorModel: "opus"` aus
   `~/.claude/settings.json`. Läuft genau einmal pro Maschine (Marker-File),
   danach dauerhaft ein No-Op.
+- `session-start-check-update.sh` *(neu v2.1)* — Selbstversorgung. Teil A
+  (offline): meldet in genau einer Zeile, wenn im Plugin-Cache eine neuere
+  Version liegt als die laufende („Neustart aktiviert sie"). Teil B (detached,
+  max. 1x/24h via Throttle-Marker `~/.claude/.work-convention-last-update-check`):
+  feuert `claude plugin marketplace update` + `claude plugin update` als
+  Hintergrund-Job mit geschlossenen FDs und `timeout 120` ab — SessionStart
+  wartet nie auf Netz. Gates: `WORK_CONVENTION_AUTO_UPDATE=off`,
+  fehlendes claude-Binary, Plugin-Source-Checkout, mkdir-Lock gegen
+  Doppelstart (verwaiste Locks > 60 min werden aufgeräumt).
+- `session-start-compact-anchor.sh` *(neu v2.1, Matcher `compact`)* —
+  injiziert nach einer (Auto-)Compaction einmalig die Kern-Anker neu:
+  Branch, aktives Ticket (`.claude/state/active-ticket.txt`, sonst Ticket-ID
+  aus dem letzten Commit), BLOCKERS.md-Pointer. Feuert ausschließlich bei
+  `source=compact` (Matcher + eigener stdin-Check), in Sessions ohne
+  Compaction exakt null Kontext.
 
 ### UserPromptSubmit
 - `userprompt-context-refresh.sh` — still. Meldet nur, wenn ein Hard-Trigger

@@ -5,6 +5,10 @@
 #       pre-edit-guards, post-tool-state) plus ensure-git-hooks.
 #       PreToolUse-Blocks geben exit 2 zurück (Claude-Code-Convention) —
 #       inklusive Eskalations-Hard-Block, der bis v1.3 fälschlich exit 1 gab.
+# v2.1: dazu statusline.sh (Fixtures: voll / ohne rate_limits / null /
+#       kaputt / leer / Injection), session-start-check-update.sh (Stub-claude
+#       im PATH, eigenes HOME-Fixture — Throttle, off-Gates, Source-Checkout,
+#       Lock) und session-start-compact-anchor.sh (source-Gate, Anker-Inhalt).
 #
 # Test-Patterns für Secret-Hooks werden zur Laufzeit aus Fragmenten
 # zusammengebaut, damit pre-edit-guards dieses File selbst nicht blockt.
@@ -349,6 +353,229 @@ assert_eq "ensure-hooks: nichts im worktrees/-hooks-subdir" "no" \
 ( cd "$R" && git worktree remove --force "$R-wt" 2>/dev/null ) || true
 rm -rf "$R" "$R-wt"
 
+# ---------- statusline.sh (v2.1: Tacho) ----------
+SL="$PLUGIN_DIR/scripts/statusline.sh"
+ESC_CHAR="$(printf '\033')"
+
+sl_case() {
+  local name="$1" json="$2" must_contain="$3" must_not_contain="$4"
+  skip "$name" && return 0
+  local out rc
+  out="$(printf '%s' "$json" | bash "$SL" 2>/dev/null)"; rc=$?
+  if [ "$rc" -ne 0 ]; then report "$name" "exit0" "exit$rc"; return; fi
+  if [ -n "$must_contain" ] && [[ "$out" != *"$must_contain"* ]]; then
+    report "$name" "enthaelt [$must_contain]" "[$out]"; return
+  fi
+  if [ -n "$must_not_contain" ] && [[ "$out" == *"$must_not_contain"* ]]; then
+    report "$name" "ohne [$must_not_contain]" "[$out]"; return
+  fi
+  report "$name" ok ok
+}
+
+SL_FULL='{"model":{"display_name":"Opus 4.8"},"context_window":{"used_percentage":3},"rate_limits":{"five_hour":{"used_percentage":6},"seven_day":{"used_percentage":24}}}'
+sl_case "statusline: voller payload alle segmente" "$SL_FULL" "7d 24%" ""
+sl_case "statusline: voller payload hat modell" "$SL_FULL" "Opus 4.8" ""
+sl_case "statusline: voller payload hat 5h" "$SL_FULL" "5h 6%" ""
+sl_case "statusline: ctx 3 ist gruen" "$SL_FULL" "${ESC_CHAR}[32mCtx 3%" ""
+sl_case "statusline: ohne rate_limits keine limit-segmente" \
+  '{"model":{"display_name":"Sonnet 5"},"context_window":{"used_percentage":60}}' "" "5h"
+sl_case "statusline: ctx 60 ist gelb" \
+  '{"context_window":{"used_percentage":60}}' "${ESC_CHAR}[33mCtx 60%" ""
+sl_case "statusline: ctx 80.4 ist rot und gerundet" \
+  '{"context_window":{"used_percentage":80.4}}' "${ESC_CHAR}[31mCtx 80%" ""
+sl_case "statusline: null-percentage segment stumm (initial-render)" \
+  '{"model":{"display_name":"Opus"},"context_window":{"used_percentage":null}}' "Opus" "Ctx"
+sl_case "statusline: string-percentage segment stumm" \
+  '{"context_window":{"used_percentage":"kaputt"},"rate_limits":{"five_hour":{"used_percentage":6}}}' "5h 6%" "Ctx"
+sl_case "statusline: kaputtes json still" 'not json{{' "" "Ctx"
+sl_case "statusline: leeres objekt still" '{}' "" "Ctx"
+
+if ! skip "statusline: leeres stdin exit 0 ohne output"; then
+  SL_OUT="$(printf '' | bash "$SL" 2>/dev/null)"; SL_RC=$?
+  [ "$SL_RC" -eq 0 ] && [ -z "$SL_OUT" ] \
+    && report "statusline: leeres stdin exit 0 ohne output" ok ok \
+    || report "statusline: leeres stdin exit 0 ohne output" "leer+exit0" "[$SL_OUT]+exit$SL_RC"
+fi
+
+# Injection: ESC/Control-Chars in Feldwerten duerfen nicht im Output landen,
+# printf-Formate muessen inert bleiben.
+if ! skip "statusline: ansi/printf-injection in display_name ist tot"; then
+  EVIL_JSON="$(jq -n --arg dn "$(printf 'Evil\033[31mROT %%s %%n \tx')" \
+    '{"model":{"display_name":$dn},"context_window":{"used_percentage":10}}')"
+  OUT="$(printf '%s' "$EVIL_JSON" | bash "$SL" 2>/dev/null)"
+  if [[ "$OUT" == *"${ESC_CHAR}[31mROT"* ]]; then
+    report "statusline: ansi/printf-injection in display_name ist tot" "kein injiziertes ESC" "ESC kam durch"
+  elif [[ "$OUT" != *"Evil"* ]]; then
+    report "statusline: ansi/printf-injection in display_name ist tot" "Evil sichtbar" "[$OUT]"
+  else
+    report "statusline: ansi/printf-injection in display_name ist tot" ok ok
+  fi
+fi
+
+# ---------- session-start-check-update (v2.1: Selbstversorgung) ----------
+UPDATE="$HOOK_DIR/session-start-check-update.sh"
+
+# Fixture: eigenes HOME (Cache + Marker), Stub-claude im PATH, leeres Projekt.
+mk_update_fx() {
+  local fx; fx="$(mktemp -d)"
+  mkdir -p "$fx/home/.claude/plugins/cache/kornmueller-empire/work-convention/1.9.0" \
+           "$fx/proj" "$fx/bin"
+  printf '#!/bin/bash\necho "$@" >> "%s/stub.log"\nexit 0\n' "$fx" > "$fx/bin/claude"
+  chmod +x "$fx/bin/claude"
+  : > "$fx/stub.log"
+  echo "$fx"
+}
+run_update() { # $1=fixture, restliche args = extra env
+  local fx="$1"; shift
+  env "$@" HOME="$fx/home" PATH="$fx/bin:$PATH" \
+    CLAUDE_PLUGIN_ROOT="$PLUGIN_DIR" CLAUDE_PROJECT_DIR="$fx/proj" bash "$UPDATE" 2>/dev/null
+}
+wait_stub() { # $1=fixture $2=erwartete zeilenzahl; wartet bis zu 5s
+  local fx="$1" want="$2" i lines
+  for i in $(seq 50); do
+    lines="$(wc -l < "$fx/stub.log" 2>/dev/null | tr -d ' ')"
+    [ "${lines:-0}" -ge "$want" ] && { echo "$lines"; return; }
+    sleep 0.1
+  done
+  wc -l < "$fx/stub.log" 2>/dev/null | tr -d ' '
+}
+
+# a) Neuere Version im Cache -> genau eine Hinweiszeile
+FX="$(mk_update_fx)"
+mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/99.0.0"
+OUT="$(run_update "$FX")"
+if ! skip "check-update: hinweis bei neuerer cache-version"; then
+  [[ "$OUT" == *"v99.0.0 liegt bereit"* ]] && [ "$(printf '%s\n' "$OUT" | wc -l | tr -d ' ')" = "1" ] \
+    && report "check-update: hinweis bei neuerer cache-version" ok ok \
+    || report "check-update: hinweis bei neuerer cache-version" "eine hinweiszeile" "[$OUT]"
+fi
+# b) ... und der detachte Update-Job feuert (Stub 2x: marketplace + plugin)
+if ! skip "check-update: detachter update-job feuert stub"; then
+  LINES="$(wait_stub "$FX" 2)"
+  [ "${LINES:-0}" -ge 2 ] && grep -q "plugin update work-convention@kornmueller-empire" "$FX/stub.log" \
+    && report "check-update: detachter update-job feuert stub" ok ok \
+    || report "check-update: detachter update-job feuert stub" "2 stub-calls" "${LINES:-0}"
+fi
+# c) Throttle: zweiter Lauf innerhalb 24h startet keinen neuen Job
+: > "$FX/stub.log"
+run_update "$FX" >/dev/null
+sleep 1
+if ! skip "check-update: throttle verhindert zweiten lauf"; then
+  [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && report "check-update: throttle verhindert zweiten lauf" ok ok \
+    || report "check-update: throttle verhindert zweiten lauf" "0 calls" "$(wc -l < "$FX/stub.log" | tr -d ' ')"
+fi
+# d) Abgelaufener Marker (25h alt) -> Job feuert wieder
+if ! skip "check-update: abgelaufener marker erlaubt neuen lauf"; then
+  echo "$(( $(date +%s) - 90000 ))" > "$FX/home/.claude/.work-convention-last-update-check"
+  : > "$FX/stub.log"
+  run_update "$FX" >/dev/null
+  LINES="$(wait_stub "$FX" 2)"
+  [ "${LINES:-0}" -ge 2 ] \
+    && report "check-update: abgelaufener marker erlaubt neuen lauf" ok ok \
+    || report "check-update: abgelaufener marker erlaubt neuen lauf" "2 calls" "${LINES:-0}"
+fi
+rm -rf "$FX"
+
+# e) WORK_CONVENTION_AUTO_UPDATE=off (env) -> kompletter no-op
+FX="$(mk_update_fx)"
+mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/99.0.0"
+OUT="$(run_update "$FX" WORK_CONVENTION_AUTO_UPDATE=off)"
+sleep 1
+if ! skip "check-update: off via env ist kompletter no-op"; then
+  [ -z "$OUT" ] && [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && [ ! -f "$FX/home/.claude/.work-convention-last-update-check" ] \
+    && report "check-update: off via env ist kompletter no-op" ok ok \
+    || report "check-update: off via env ist kompletter no-op" "stille" "[$OUT]/$(wc -l < "$FX/stub.log" | tr -d ' ')"
+fi
+# f) off via App-.env -> ebenso, auch bei teilinvalider .env
+printf 'WORK_CONVENTION_AUTO_UPDATE="off"\nBAD=a(b\n' > "$FX/proj/.env"
+OUT="$(run_update "$FX")"
+sleep 1
+if ! skip "check-update: off via teilinvalider .env greift"; then
+  [ -z "$OUT" ] && [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && report "check-update: off via teilinvalider .env greift" ok ok \
+    || report "check-update: off via teilinvalider .env greift" "stille" "[$OUT]"
+fi
+rm -rf "$FX"
+
+# g) Plugin-Source-Checkout -> no-op (sonst wuerden --plugin-dir-Tests echte Updates feuern)
+FX="$(mk_update_fx)"
+mkdir -p "$FX/proj/plugins/work-convention/.claude-plugin"
+echo '{}' > "$FX/proj/plugins/work-convention/.claude-plugin/plugin.json"
+mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/99.0.0"
+OUT="$(run_update "$FX")"
+sleep 1
+if ! skip "check-update: source-checkout ist no-op"; then
+  [ -z "$OUT" ] && [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && report "check-update: source-checkout ist no-op" ok ok \
+    || report "check-update: source-checkout ist no-op" "stille" "[$OUT]"
+fi
+rm -rf "$FX"
+
+# h) self ist bereits die hoechste Version -> keine Hinweiszeile
+FX="$(mk_update_fx)"
+OUT="$(run_update "$FX")"
+if ! skip "check-update: keine hinweiszeile wenn self aktuell"; then
+  [ -z "$OUT" ] \
+    && report "check-update: keine hinweiszeile wenn self aktuell" ok ok \
+    || report "check-update: keine hinweiszeile wenn self aktuell" "stille" "[$OUT]"
+fi
+rm -rf "$FX"
+
+# i) Doppelstart-Schutz: bestehender Lock -> kein zweiter Job
+FX="$(mk_update_fx)"
+mkdir -p "$FX/home/.claude/.work-convention-last-update-check.lock"
+run_update "$FX" >/dev/null
+sleep 1
+if ! skip "check-update: mkdir-lock verhindert doppelstart"; then
+  [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && report "check-update: mkdir-lock verhindert doppelstart" ok ok \
+    || report "check-update: mkdir-lock verhindert doppelstart" "0 calls" "$(wc -l < "$FX/stub.log" | tr -d ' ')"
+fi
+rm -rf "$FX"
+
+# ---------- session-start-compact-anchor (v2.1: Reinjection) ----------
+ANCHOR="$HOOK_DIR/session-start-compact-anchor.sh"
+R="$(mk_repo)"
+( cd "$R" && git -c user.email=t@t -c user.name=t commit -q --allow-empty -m 'fix(LAV-559): x' \
+  && git checkout -q -b feature/anchor )
+echo "offen" > "$R/BLOCKERS.md"
+
+if ! skip "compact-anchor: source=compact injiziert anker"; then
+  OUT="$(echo '{"source":"compact"}' | env CLAUDE_PROJECT_DIR="$R" bash "$ANCHOR" 2>/dev/null)"
+  [[ "$OUT" == *"Branch: feature/anchor"* ]] && [[ "$OUT" == *"LAV-559"* ]] && [[ "$OUT" == *"BLOCKERS.md"* ]] \
+    && report "compact-anchor: source=compact injiziert anker" ok ok \
+    || report "compact-anchor: source=compact injiziert anker" "branch+ticket+blockers" "[$OUT]"
+fi
+if ! skip "compact-anchor: source=startup ist stumm"; then
+  OUT="$(echo '{"source":"startup"}' | env CLAUDE_PROJECT_DIR="$R" bash "$ANCHOR" 2>/dev/null)"
+  [ -z "$OUT" ] && report "compact-anchor: source=startup ist stumm" ok ok \
+    || report "compact-anchor: source=startup ist stumm" "stille" "[$OUT]"
+fi
+if ! skip "compact-anchor: state-ticket gewinnt ueber commit"; then
+  mkdir -p "$R/.claude/state"; printf 'MIGRATE-016\nrest ignoriert\n' > "$R/.claude/state/active-ticket.txt"
+  OUT="$(echo '{"source":"compact"}' | env CLAUDE_PROJECT_DIR="$R" bash "$ANCHOR" 2>/dev/null)"
+  [[ "$OUT" == *"Ticket: MIGRATE-016"* ]] && [[ "$OUT" != *"rest ignoriert"* ]] \
+    && report "compact-anchor: state-ticket gewinnt ueber commit" ok ok \
+    || report "compact-anchor: state-ticket gewinnt ueber commit" "MIGRATE-016" "[$OUT]"
+fi
+if ! skip "compact-anchor: leeres stdin ist stumm und exit 0"; then
+  OUT="$(printf '' | env CLAUDE_PROJECT_DIR="$R" bash "$ANCHOR" 2>/dev/null)"; RC=$?
+  [ "$RC" -eq 0 ] && [ -z "$OUT" ] \
+    && report "compact-anchor: leeres stdin ist stumm und exit 0" ok ok \
+    || report "compact-anchor: leeres stdin ist stumm und exit 0" "stille+exit0" "[$OUT]+$RC"
+fi
+rm -rf "$R"
+if ! skip "compact-anchor: ohne git/state/blockers stumm"; then
+  T="$(mktemp -d)"
+  OUT="$(echo '{"source":"compact"}' | env CLAUDE_PROJECT_DIR="$T" bash "$ANCHOR" 2>/dev/null)"; RC=$?
+  [ "$RC" -eq 0 ] && [ -z "$OUT" ] \
+    && report "compact-anchor: ohne git/state/blockers stumm" ok ok \
+    || report "compact-anchor: ohne git/state/blockers stumm" "stille+exit0" "[$OUT]+$RC"
+  rm -rf "$T"
+fi
+
 # ---------- precommit-ticket-id-required (git commit-msg hook) ----------
 TICKET="$HOOK_DIR/precommit-ticket-id-required.sh"
 MSGF="$(mktemp)"
@@ -363,7 +590,7 @@ run_test_args "precommit: merge commit skipped" 0 bash "$TICKET" "$MSGF"
 rm -f "$MSGF"
 
 # ---------- CLAUDE_PLUGIN_ROOT-Härtung: kein Hook stirbt unter set -u ----------
-for hookname in pre-bash-guards.sh pre-edit-guards.sh post-tool-state.sh stop-completeness.sh userprompt-context-refresh.sh; do
+for hookname in pre-bash-guards.sh pre-edit-guards.sh post-tool-state.sh stop-completeness.sh userprompt-context-refresh.sh session-start-check-update.sh session-start-compact-anchor.sh; do
   name="plugin-root: $hookname ueberlebt ohne CLAUDE_PLUGIN_ROOT"
   skip "$name" && continue
   T="$(mktemp -d)"

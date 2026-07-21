@@ -1,7 +1,7 @@
 {
   "name": "work-convention",
   "description": "Lean-Core Arbeitskonventionen für Kornmueller Consulting: model-gepinnte Subagents, selbstinstallierende git-Hooks, Secret/Prod-Guards, 3-Layer-Eskalation — bewusst ohne Idle-Kontext-Kosten.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": {
     "name": "Kornmueller Consulting",
     "email": "patrick@kornmueller-consulting.de"

@@ -18,7 +18,7 @@ err()  { echo "  ❌ $1"; ERR=$((ERR+1)); }
 
 echo "═══ Plugin-Files ($PLUGIN_ROOT) ═══"
 HOOK_COUNT=$(ls "$PLUGIN_ROOT/hooks/"*.sh 2>/dev/null | wc -l | tr -d ' ')
-[ "$HOOK_COUNT" -eq 11 ] && ok "$HOOK_COUNT Hook-Scripts" || warn "erwartet 11 Hook-Scripts, gefunden: $HOOK_COUNT"
+[ "$HOOK_COUNT" -eq 13 ] && ok "$HOOK_COUNT Hook-Scripts" || warn "erwartet 13 Hook-Scripts, gefunden: $HOOK_COUNT"
 [ -f "$PLUGIN_ROOT/hooks/hooks.json" ] && ok "hooks.json" || err "hooks.json fehlt"
 AGENT_COUNT=$(ls "$PLUGIN_ROOT/agents/"*.md 2>/dev/null | wc -l | tr -d ' ')
 [ "$AGENT_COUNT" -eq 7 ] && ok "7 Agents" || warn "erwartet 7 Agents, gefunden: $AGENT_COUNT"
@@ -54,6 +54,19 @@ if [ -f "$APP_DIR/.env" ]; then
     || warn "CURRENT_OPERATOR sollte 'patrick' oder 'justin' sein"
 else
   warn ".env fehlt — cp .env.example .env (APP_PROJECT_PREFIX nötig für git-Hooks)"
+fi
+
+echo ""
+echo "═══ Tacho & Selbstversorgung (v2.1) ═══"
+if jq -e '.statusLine' "$HOME/.claude/settings.json" >/dev/null 2>&1; then
+  ok "Statusline konfiguriert (~/.claude/settings.json)"
+else
+  warn "Statusline nicht konfiguriert — Opt-in-Snippet: docs/STATUSLINE.md im Plugin-Repo"
+fi
+if [ -f "$HOME/.claude/.work-convention-last-update-check" ]; then
+  ok "Self-Update-Hook ist gelaufen (Marker vorhanden)"
+else
+  warn "Self-Update noch nie gelaufen — kommt beim nächsten Session-Start (≥v2.1)"
 fi
 
 echo ""

@@ -14,13 +14,16 @@ claude plugin marketplace add KornmuellerConsulting/work-convention-plugin
 claude plugin install work-convention@kornmueller-empire
 ```
 
-## Was das Plugin liefert (v2.0 — Lean Core)
+## Was das Plugin liefert (v2.1 — Tacho & Selbstversorgung)
 
 - **7 Subagents mit Model-Pins** — Builder, Solver (Layer 2), Reviewer, Researcher, Debugger, Deployer, Scout. Der direkteste Hebel auf Abo-Limits: Lese- und Review-Arbeit läuft auf haiku/sonnet, nur Solver/Deployer auf opus ([Routing + Rationale](docs/MODEL_ROUTING.md))
 - **Selbstinstallierende git-Hooks** — Ticket-ID-Zwang, gitleaks-Secret-Scan, Branch-Fresh + Tests vor Push. Installieren und aktualisieren sich pro Session-Start selbst (nur in Empire-Apps, fremde Repos bleiben unberührt)
+- **Selbst-updatendes Plugin** — 1x/24h zieht ein detachter Hintergrund-Job neue Versionen in den Cache; beim nächsten Session-Start genau eine Zeile „Neustart aktiviert sie". Abschaltbar per `WORK_CONVENTION_AUTO_UPDATE=off`
+- **Statusline-Tacho** — Modell | Kontext-% (Farbschwellen) | 5h-Limit-% | Wochen-Limit-% als ambiente Anzeige, null Kontext-Kosten. Opt-in-Einzeiler: [docs/STATUSLINE.md](docs/STATUSLINE.md)
+- **Compact-Anker** — nach einer (Auto-)Compaction werden Branch, Ticket und BLOCKERS-Pointer einmalig neu injiziert; in Sessions ohne Compaction null Kontext
 - **3 konsolidierte Guard-Dispatcher** — Secrets/Prod-Destructive/Migrations-Lock/Eskalations-Block (Bash), Plugin-File-Schutz/Monorepo-Boundary/Secrets (Edit/Write), Fail-Counter/HEAD-Record (PostToolUse). Blocken bei Verstoß, schweigen sonst
 - **3-Layer-Eskalations-Modell** — Hard-Trigger ab Fail #3, echter Hard-Block ab Fail #4, `/escalate` für Layer-Wechsel und Reset, Layer-3-Notify via Slack/Pushover/WhatsApp
-- **Tests** — 57 Hook-Tests + Healthcheck, CI-enforced
+- **Tests** — 66+ Hook-Tests + Healthcheck, CI-enforced
 
 **Bewusst NICHT enthalten:** Auto-Sync zu externen Diensten, Session-Briefings, Hint-Hooks, Plugin-Kataloge. Jede Zeile Idle-Kontext wird in jeder Session bezahlt — Install-Skepsis vor jedem neuen Tool: *Läuft es ohne API-Key gegen Plan-Limits? Was kostet es idle im Kontext? Dupliziert es, was wir haben?*
 
@@ -47,8 +50,8 @@ work-convention-plugin/
 │       ├── .claude-plugin/plugin.json
 │       ├── agents/           ← 7 Subagents (alle model-gepinnt)
 │       ├── commands/         ← /escalate
-│       ├── hooks/            ← 11 Hook-Scripts + hooks.json (7 Registrierungen)
-│       └── scripts/          ← install-git-hooks.sh, healthcheck.sh, notify.sh
+│       ├── hooks/            ← 13 Hook-Scripts + hooks.json (9 Registrierungen)
+│       └── scripts/          ← install-git-hooks.sh, healthcheck.sh, statusline.sh, notify.sh
 ├── templates/                ← CLAUDE.md, BLOCKERS/DECISIONS-Templates
 ├── docs/                     ← MODEL_ROUTING.md, HOOKS.md, ESCALATION.md, etc.
 ├── README.md
