@@ -18,15 +18,17 @@ ist das ein bewusster Ein-Zeilen-Opt-in in der eigenen `~/.claude/settings.json`
 {
   "statusLine": {
     "type": "command",
-    "command": "bash \"$(ls -d \"$HOME\"/.claude/plugins/cache/kornmueller-empire/work-convention/*/scripts/statusline.sh 2>/dev/null | sort -V | tail -1)\""
+    "command": "SL=$(ls \"$HOME\"/.claude/plugins/cache/kornmueller-empire/work-convention/*/scripts/statusline.sh 2>/dev/null | sort -V | tail -1); [ -n \"$SL\" ] && bash \"$SL\" || :"
   }
 }
 ```
 
 Der `sort -V`-Resolver zeigt immer auf die höchste installierte Plugin-Version
 (Cache-Resolver-Pattern aus QUICKSTART) — die Statusline überlebt also jedes
-Plugin-Update ohne dass der Eintrag angefasst werden muss. Voraussetzung:
-Plugin ≥ 2.1.0 installiert (ältere Versionen haben das Script nicht).
+Plugin-Update ohne dass der Eintrag angefasst werden muss. Der `[ -n ]`-Guard
+hält den Eintrag auch dann still, wenn (noch) keine installierte Version das
+Script mitbringt — Plugin ≥ 2.1.0 nötig; ohne Guard würde `bash ""` bei jedem
+Render einen Fehler werfen (Verify-Pass-Fund).
 
 `scripts/healthcheck.sh` erinnert mit einer Warnung, solange keine Statusline
 konfiguriert ist.

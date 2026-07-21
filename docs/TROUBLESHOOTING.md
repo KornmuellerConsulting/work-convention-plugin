@@ -6,7 +6,7 @@
 - `chmod +x plugins/work-convention/hooks/*.sh` (im Plugin-Cache: `~/.claude/plugins/cache/kornmueller-empire/work-convention/<version>/hooks/*.sh`)
 - Registrierung prüfen: `claude -d hooks --debug-file /tmp/claude-debug.log` → `/exit` →
   `grep -iE "registered.*hooks|hook.*load" /tmp/claude-debug.log`. Erwartung:
-  `Registered 7 hooks from 1 plugins`. Bei 0: invalides Event in `hooks.json`
+  `Registered 9 hooks from 1 plugins`. Bei 0: invalides Event in `hooks.json`
   (siehe [HOOKS.md](./HOOKS.md)).
 
 ### "Hard-Trigger lässt sich nicht aufheben"

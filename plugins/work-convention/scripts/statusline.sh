@@ -18,9 +18,10 @@
 #     haben keine rate_limits; der allererste Render einer Session hat
 #     used_percentage=null (real gemessen in 2.1.210).
 #   - Feldwerte (z.B. model.display_name) werden in jq per Codepoint-Filter
-#     von sämtlichen Control-Chars (inkl. ESC, Tab, Newline) bereinigt und nur
-#     via printf '%s' ausgegeben — kein Wert wird je als printf-Format
-#     interpretiert, ANSI-Injection über stdin-Werte ist tot.
+#     von sämtlichen Control-Chars bereinigt — C0 (inkl. ESC/Tab/Newline), DEL
+#     UND der C1-Block U+0080–U+009F (8-Bit-CSI/OSC/DCS/NEL, Verify-Pass-Fund
+#     aus v2.1) — und nur via printf '%s' ausgegeben. Kein Wert wird je als
+#     printf-Format interpretiert, ANSI-Injection über stdin-Werte ist tot.
 #   - Nur jq + Bash-Builtins: kein git, kein Netz, keine BSD-only-Tools.
 #     Läuft unter macOS, Linux und Windows/Git-Bash.
 # =============================================================================
@@ -33,7 +34,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 # zwischen Oniguruma-Builds nicht portabel. Nach clean kann kein Wert mehr
 # Zeilen vortäuschen, zeilenbasiertes Lesen ist damit sicher.
 VALS="$(jq -r '
-  def clean: tostring | explode | map(select(. >= 32 and . != 127)) | implode;
+  def clean: tostring | explode | map(select((. >= 32 and . < 127) or . > 159)) | implode;
   def pct(v): (v | if type == "number" then round | tostring else "NA" end);
   (.model.display_name // "NA" | clean),
   pct(.context_window.used_percentage),

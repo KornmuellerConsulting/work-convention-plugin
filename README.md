@@ -23,7 +23,7 @@ claude plugin install work-convention@kornmueller-empire
 - **Compact-Anker** — nach einer (Auto-)Compaction werden Branch, Ticket und BLOCKERS-Pointer einmalig neu injiziert; in Sessions ohne Compaction null Kontext
 - **3 konsolidierte Guard-Dispatcher** — Secrets/Prod-Destructive/Migrations-Lock/Eskalations-Block (Bash), Plugin-File-Schutz/Monorepo-Boundary/Secrets (Edit/Write), Fail-Counter/HEAD-Record (PostToolUse). Blocken bei Verstoß, schweigen sonst
 - **3-Layer-Eskalations-Modell** — Hard-Trigger ab Fail #3, echter Hard-Block ab Fail #4, `/escalate` für Layer-Wechsel und Reset, Layer-3-Notify via Slack/Pushover/WhatsApp
-- **Tests** — 66+ Hook-Tests + Healthcheck, CI-enforced
+- **Tests** — 103 Hook-Tests + Healthcheck, CI-enforced
 
 **Bewusst NICHT enthalten:** Auto-Sync zu externen Diensten, Session-Briefings, Hint-Hooks, Plugin-Kataloge. Jede Zeile Idle-Kontext wird in jeder Session bezahlt — Install-Skepsis vor jedem neuen Tool: *Läuft es ohne API-Key gegen Plan-Limits? Was kostet es idle im Kontext? Dupliziert es, was wir haben?*
 

@@ -38,19 +38,34 @@ PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
 # Gate: WORK_CONVENTION_AUTO_UPDATE=off — aus echter Env oder App-.env.
 # Gezielter sed-Extract statt source: teilinvalide .env darf uns nicht killen
-# (Verify-Pass-Lektion aus v2.0).
+# (Verify-Pass-Lektion aus v2.0). "export VAR=off" und führende Leerzeichen
+# sind in einer gesourcten .env valide und müssen mitmatchen (Verify-Fund v2.1).
 AUTO="${WORK_CONVENTION_AUTO_UPDATE:-}"
 if [ -z "$AUTO" ] && [ -f "$PROJECT_DIR/.env" ]; then
-  AUTO="$(sed -n 's/^WORK_CONVENTION_AUTO_UPDATE=[\"'\'']\{0,1\}\([a-zA-Z]*\).*/\1/p' "$PROJECT_DIR/.env" 2>/dev/null | head -1)"
+  AUTO="$(sed -n 's/^[[:space:]]*\(export[[:space:]]\{1,\}\)\{0,1\}WORK_CONVENTION_AUTO_UPDATE=[\"'\'']\{0,1\}\([a-zA-Z]*\).*/\2/p' "$PROJECT_DIR/.env" 2>/dev/null | head -1)"
 fi
 [ "$AUTO" = "off" ] && exit 0
 
 CACHE_DIR="$HOME/.claude/plugins/cache/kornmueller-empire/work-convention"
 
 # ---------- Teil A: offline, sofort ----------
+# Als "bereitliegend" zählt nur ein Versions-Verzeichnis mit echtem
+# Plugin-Inhalt (plugin.json) — leere Dirs oder verirrte Dateien im Cache
+# würden sonst eine dauerhaft falsche Neustart-Zeile produzieren (Verify-Fund).
 SELF_VER="$(jq -r '.version // empty' "$PLUGIN_ROOT/.claude-plugin/plugin.json" 2>/dev/null)"
 if [ -n "$SELF_VER" ] && [ -d "$CACHE_DIR" ]; then
-  NEWEST="$(ls -1 "$CACHE_DIR" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+  NEWEST=""
+  for d in "$CACHE_DIR"/*/; do
+    [ -d "$d" ] || continue
+    v="$(basename "$d")"
+    printf '%s' "$v" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || continue
+    [ -f "$d/.claude-plugin/plugin.json" ] || continue
+    if [ -z "$NEWEST" ]; then
+      NEWEST="$v"
+    else
+      NEWEST="$(printf '%s\n%s\n' "$NEWEST" "$v" | sort -V | tail -1)"
+    fi
+  done
   if [ -n "$NEWEST" ] && [ "$NEWEST" != "$SELF_VER" ]; then
     HIGHER="$(printf '%s\n%s\n' "$SELF_VER" "$NEWEST" | sort -V | tail -1)"
     [ "$HIGHER" = "$NEWEST" ] && echo "⬆️  work-convention v$NEWEST liegt bereit — Neustart aktiviert sie."
@@ -65,17 +80,24 @@ NOW="$(date +%s)"
 LAST=""
 [ -f "$STAMP" ] && LAST="$(tr -dc '0-9' 2>/dev/null < "$STAMP" || true)"
 [ -z "$LAST" ] && LAST=0
+# Zukunfts-Timestamp (zurückgestellte Uhr, korrupter Marker) würde den
+# Throttle für immer vergiften — wie fehlend behandeln (Verify-Fund).
+[ "$LAST" -gt "$NOW" ] && LAST=0
 [ $((NOW - LAST)) -lt 86400 ] && exit 0
 
+# Parent-Verzeichnis VOR dem Lock-mkdir sicherstellen — ohne ~/.claude
+# scheiterte sonst der Lock still und Teil B wäre dauerhaft tot (Verify-Fund).
+mkdir -p "$(dirname "$STAMP")" 2>/dev/null || true
+
 # Atomarer Doppelstart-Schutz. Verwaiste Locks (Crash mitten im Update)
-# nach 60 Minuten aufräumen, sonst wäre Auto-Update für immer tot.
+# nach 60 Minuten aufräumen — rm -rf statt rmdir, denn ein Lock mit Inhalt
+# (z.B. .DS_Store) wäre sonst unlöschbar und Teil B für immer tot (Verify-Fund).
 LOCK="$STAMP.lock"
 if [ -d "$LOCK" ] && [ -n "$(find "$LOCK" -maxdepth 0 -mmin +60 2>/dev/null)" ]; then
-  rmdir "$LOCK" 2>/dev/null || true
+  rm -rf "$LOCK" 2>/dev/null || true
 fi
 mkdir "$LOCK" 2>/dev/null || exit 0
 
-mkdir -p "$(dirname "$STAMP")" 2>/dev/null || true
 printf '%s\n' "$NOW" > "$STAMP" 2>/dev/null || true
 
 # Geschlossene FDs sind Pflicht: ein geerbtes stdout hält sonst den

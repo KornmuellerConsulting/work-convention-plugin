@@ -418,12 +418,17 @@ UPDATE="$HOOK_DIR/session-start-check-update.sh"
 # Fixture: eigenes HOME (Cache + Marker), Stub-claude im PATH, leeres Projekt.
 mk_update_fx() {
   local fx; fx="$(mktemp -d)"
-  mkdir -p "$fx/home/.claude/plugins/cache/kornmueller-empire/work-convention/1.9.0" \
+  mkdir -p "$fx/home/.claude/plugins/cache/kornmueller-empire/work-convention" \
            "$fx/proj" "$fx/bin"
   printf '#!/bin/bash\necho "$@" >> "%s/stub.log"\nexit 0\n' "$fx" > "$fx/bin/claude"
   chmod +x "$fx/bin/claude"
   : > "$fx/stub.log"
   echo "$fx"
+}
+# Eine Cache-Version zaehlt nur mit echtem Plugin-Inhalt (plugin.json).
+mk_cache_ver() { # $1=fixture $2=version
+  mkdir -p "$1/home/.claude/plugins/cache/kornmueller-empire/work-convention/$2/.claude-plugin"
+  printf '{"version":"%s"}' "$2" > "$1/home/.claude/plugins/cache/kornmueller-empire/work-convention/$2/.claude-plugin/plugin.json"
 }
 run_update() { # $1=fixture, restliche args = extra env
   local fx="$1"; shift
@@ -442,7 +447,7 @@ wait_stub() { # $1=fixture $2=erwartete zeilenzahl; wartet bis zu 5s
 
 # a) Neuere Version im Cache -> genau eine Hinweiszeile
 FX="$(mk_update_fx)"
-mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/99.0.0"
+mk_cache_ver "$FX" "99.0.0"
 OUT="$(run_update "$FX")"
 if ! skip "check-update: hinweis bei neuerer cache-version"; then
   [[ "$OUT" == *"v99.0.0 liegt bereit"* ]] && [ "$(printf '%s\n' "$OUT" | wc -l | tr -d ' ')" = "1" ] \
@@ -479,7 +484,7 @@ rm -rf "$FX"
 
 # e) WORK_CONVENTION_AUTO_UPDATE=off (env) -> kompletter no-op
 FX="$(mk_update_fx)"
-mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/99.0.0"
+mk_cache_ver "$FX" "99.0.0"
 OUT="$(run_update "$FX" WORK_CONVENTION_AUTO_UPDATE=off)"
 sleep 1
 if ! skip "check-update: off via env ist kompletter no-op"; then
@@ -503,7 +508,7 @@ rm -rf "$FX"
 FX="$(mk_update_fx)"
 mkdir -p "$FX/proj/plugins/work-convention/.claude-plugin"
 echo '{}' > "$FX/proj/plugins/work-convention/.claude-plugin/plugin.json"
-mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/99.0.0"
+mk_cache_ver "$FX" "99.0.0"
 OUT="$(run_update "$FX")"
 sleep 1
 if ! skip "check-update: source-checkout ist no-op"; then
@@ -534,6 +539,104 @@ if ! skip "check-update: mkdir-lock verhindert doppelstart"; then
     || report "check-update: mkdir-lock verhindert doppelstart" "0 calls" "$(wc -l < "$FX/stub.log" | tr -d ' ')"
 fi
 rm -rf "$FX"
+
+# ---------- Verify-Pass-Regressionen v2.1 (Skeptiker-Repros als Tests) ----------
+# j) "export VAR=off" und fuehrende Leerzeichen in der .env muessen das Gate treffen
+FX="$(mk_update_fx)"
+printf 'export WORK_CONVENTION_AUTO_UPDATE=off\n' > "$FX/proj/.env"
+OUT="$(run_update "$FX")"; sleep 1
+if ! skip "regression: off mit export-prefix greift"; then
+  [ -z "$OUT" ] && [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && report "regression: off mit export-prefix greift" ok ok \
+    || report "regression: off mit export-prefix greift" "stille" "[$OUT]/$(wc -l < "$FX/stub.log" | tr -d ' ')"
+fi
+printf '   WORK_CONVENTION_AUTO_UPDATE=off\n' > "$FX/proj/.env"
+OUT="$(run_update "$FX")"; sleep 1
+if ! skip "regression: off mit fuehrenden leerzeichen greift"; then
+  [ -z "$OUT" ] && [ "$(wc -l < "$FX/stub.log" | tr -d ' ')" = "0" ] \
+    && report "regression: off mit fuehrenden leerzeichen greift" ok ok \
+    || report "regression: off mit fuehrenden leerzeichen greift" "stille" "[$OUT]"
+fi
+rm -rf "$FX"
+
+# k) Leere Version-Dirs und verirrte Dateien im Cache sind KEINE Versionen
+FX="$(mk_update_fx)"
+mkdir -p "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/9.9.9"
+touch "$FX/home/.claude/plugins/cache/kornmueller-empire/work-convention/8.8.8"
+OUT="$(run_update "$FX")"
+if ! skip "regression: leere dirs/dateien im cache erzeugen keinen hinweis"; then
+  [ -z "$OUT" ] \
+    && report "regression: leere dirs/dateien im cache erzeugen keinen hinweis" ok ok \
+    || report "regression: leere dirs/dateien im cache erzeugen keinen hinweis" "stille" "[$OUT]"
+fi
+rm -rf "$FX"
+
+# l) Zukunfts-Timestamp im Marker darf den Throttle nicht fuer immer vergiften
+FX="$(mk_update_fx)"
+echo "$(( $(date +%s) + 90000 ))" > "$FX/home/.claude/.work-convention-last-update-check"
+run_update "$FX" >/dev/null
+if ! skip "regression: zukunfts-timestamp gilt als abgelaufen"; then
+  LINES="$(wait_stub "$FX" 2)"
+  NEWSTAMP="$(cat "$FX/home/.claude/.work-convention-last-update-check" 2>/dev/null)"
+  [ "${LINES:-0}" -ge 2 ] && [ "${NEWSTAMP:-0}" -le "$(date +%s)" ] \
+    && report "regression: zukunfts-timestamp gilt als abgelaufen" ok ok \
+    || report "regression: zukunfts-timestamp gilt als abgelaufen" "2 calls+saniert" "${LINES:-0}/[$NEWSTAMP]"
+fi
+rm -rf "$FX"
+
+# m) Verwaister Lock MIT Inhalt (z.B. .DS_Store) muss trotzdem aufgeraeumt werden
+FX="$(mk_update_fx)"
+LOCKD="$FX/home/.claude/.work-convention-last-update-check.lock"
+mkdir -p "$LOCKD"; touch "$LOCKD/.DS_Store"
+touch -t 202001010101 "$LOCKD"
+run_update "$FX" >/dev/null
+if ! skip "regression: stale lock mit inhalt wird aufgeraeumt"; then
+  LINES="$(wait_stub "$FX" 2)"
+  [ "${LINES:-0}" -ge 2 ] \
+    && report "regression: stale lock mit inhalt wird aufgeraeumt" ok ok \
+    || report "regression: stale lock mit inhalt wird aufgeraeumt" "2 calls" "${LINES:-0}"
+fi
+rm -rf "$FX"
+
+# n) HOME ganz ohne .claude-Verzeichnis: Teil B muss es anlegen statt still zu sterben
+FX="$(mk_update_fx)"
+rm -rf "$FX/home/.claude"
+run_update "$FX" >/dev/null
+if ! skip "regression: fehlendes ~/.claude wird angelegt"; then
+  LINES="$(wait_stub "$FX" 2)"
+  [ "${LINES:-0}" -ge 2 ] && [ -f "$FX/home/.claude/.work-convention-last-update-check" ] \
+    && report "regression: fehlendes ~/.claude wird angelegt" ok ok \
+    || report "regression: fehlendes ~/.claude wird angelegt" "2 calls+stamp" "${LINES:-0}"
+fi
+rm -rf "$FX"
+
+# o) Statusline: C1-Control-Chars (8-Bit-CSI etc.) muessen wie C0 entfernt werden
+if ! skip "regression: statusline entfernt c1-control-chars"; then
+  C1_CSI="$(printf '\302\233')"  # U+009B als UTF-8
+  EVIL_JSON="$(jq -n --arg dn "$(printf 'X\302\23341;97mPWNED und \302\205 NEL')" \
+    '{"model":{"display_name":$dn},"context_window":{"used_percentage":10}}')"
+  OUT="$(printf '%s' "$EVIL_JSON" | bash "$SL" 2>/dev/null)"
+  if [[ "$OUT" == *"$C1_CSI"* ]] || [[ "$OUT" == *"$(printf '\302\205')"* ]]; then
+    report "regression: statusline entfernt c1-control-chars" "kein C1 im output" "C1 kam durch"
+  elif [[ "$OUT" != *"PWNED"* ]]; then
+    report "regression: statusline entfernt c1-control-chars" "PWNED-rest sichtbar" "[$OUT]"
+  else
+    report "regression: statusline entfernt c1-control-chars" ok ok
+  fi
+fi
+
+# p) STATUSLINE.md-Snippet: ohne installierte Version still (exit 0, kein stderr-Muell)
+if ! skip "regression: statusline-snippet ohne version still"; then
+  FXH="$(mktemp -d)"
+  # Snippet steht JSON-escaped in der Doku (\" -> ") — so wie Claude Code es
+  # nach dem JSON-Parsen ausfuehren wuerde.
+  SNIPPET_CMD="$(grep -o 'SL=\$(ls.*|| :' "$PLUGIN_DIR/../../docs/STATUSLINE.md" | head -1 | sed 's/\\"/"/g')"
+  ERR="$(HOME="$FXH" sh -c "$SNIPPET_CMD" 2>&1)"; RC=$?
+  [ "$RC" -eq 0 ] && [ -z "$ERR" ] \
+    && report "regression: statusline-snippet ohne version still" ok ok \
+    || report "regression: statusline-snippet ohne version still" "exit0+stille" "exit$RC+[$ERR]"
+  rm -rf "$FXH"
+fi
 
 # ---------- session-start-compact-anchor (v2.1: Reinjection) ----------
 ANCHOR="$HOOK_DIR/session-start-compact-anchor.sh"
